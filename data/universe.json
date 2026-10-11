@@ -1,0 +1,41 @@
+{
+  "NSE": [
+    {"ticker": "TCS.NS", "name": "Tata Consultancy Services", "sector": "IT"},
+    {"ticker": "INFY.NS", "name": "Infosys", "sector": "IT"},
+    {"ticker": "HDFCBANK.NS", "name": "HDFC Bank", "sector": "Banking"},
+    {"ticker": "RELIANCE.NS", "name": "Reliance Industries", "sector": "Energy"},
+    {"ticker": "WIPRO.NS", "name": "Wipro", "sector": "IT"},
+    {"ticker": "ICICIBANK.NS", "name": "ICICI Bank", "sector": "Banking"},
+    {"ticker": "KOTAKBANK.NS", "name": "Kotak Mahindra Bank", "sector": "Banking"},
+    {"ticker": "SBIN.NS", "name": "State Bank of India", "sector": "Banking"},
+    {"ticker": "BAJFINANCE.NS", "name": "Bajaj Finance", "sector": "Finance"},
+    {"ticker": "HINDUNILVR.NS", "name": "Hindustan Unilever", "sector": "FMCG"},
+    {"ticker": "ASIANPAINT.NS", "name": "Asian Paints", "sector": "FMCG"},
+    {"ticker": "HCLTECH.NS", "name": "HCL Technologies", "sector": "IT"},
+    {"ticker": "MARUTI.NS", "name": "Maruti Suzuki", "sector": "Auto"},
+    {"ticker": "SUNPHARMA.NS", "name": "Sun Pharma", "sector": "Pharma"},
+    {"ticker": "TITAN.NS", "name": "Titan Company", "sector": "Consumer"},
+    {"ticker": "ULTRACEMCO.NS", "name": "UltraTech Cement", "sector": "Materials"},
+    {"ticker": "ONGC.NS", "name": "ONGC", "sector": "Energy"},
+    {"ticker": "POWERGRID.NS", "name": "Power Grid Corp", "sector": "Utilities"},
+    {"ticker": "NTPC.NS", "name": "NTPC", "sector": "Utilities"},
+    {"ticker": "BHARTIARTL.NS", "name": "Bharti Airtel", "sector": "Telecom"}
+  ],
+  "US": [
+    {"ticker": "AAPL", "name": "Apple Inc", "sector": "Tech"},
+    {"ticker": "MSFT", "name": "Microsoft", "sector": "Tech"},
+    {"ticker": "GOOGL", "name": "Alphabet", "sector": "Tech"},
+    {"ticker": "AMZN", "name": "Amazon", "sector": "Consumer"},
+    {"ticker": "NVDA", "name": "NVIDIA", "sector": "Tech"},
+    {"ticker": "META", "name": "Meta Platforms", "sector": "Tech"},
+    {"ticker": "TSLA", "name": "Tesla", "sector": "Auto"},
+    {"ticker": "BRK-B", "name": "Berkshire Hathaway", "sector": "Finance"},
+    {"ticker": "JPM", "name": "JPMorgan Chase", "sector": "Banking"},
+    {"ticker": "V", "name": "Visa Inc", "sector": "Finance"}
+  ],
+  "Indices": [
+    {"ticker": "^NSEI", "name": "NIFTY 50", "sector": "Index"},
+    {"ticker": "^NDX", "name": "NASDAQ-100", "sector": "Index"},
+    {"ticker": "^BSESN", "name": "BSE SENSEX", "sector": "Index"}
+  ]
+}

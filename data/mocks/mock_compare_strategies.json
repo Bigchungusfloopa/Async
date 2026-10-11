@@ -1,0 +1,6 @@
+[
+  {"strategy": "Original", "ann_return": 0.142, "ann_vol": 0.184, "max_drawdown": -0.31, "sharpe": 0.82, "effective_n": 2.6},
+  {"strategy": "Recommended", "ann_return": 0.128, "ann_vol": 0.162, "max_drawdown": -0.24, "sharpe": 0.91, "effective_n": 3.1},
+  {"strategy": "Equal Weight", "ann_return": 0.135, "ann_vol": 0.172, "max_drawdown": -0.27, "sharpe": 0.87, "effective_n": 3.0},
+  {"strategy": "NIFTY 50", "ann_return": 0.118, "ann_vol": 0.158, "max_drawdown": -0.26, "sharpe": 0.75, "effective_n": null}
+]

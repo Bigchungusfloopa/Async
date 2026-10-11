@@ -1,0 +1,12 @@
+{
+  "table": [
+    {"ticker": "TCS.NS", "quantity": 10, "buy_price": 3450.0, "current_price": 3812.0, "value": 38120.0, "pnl": 3620.0, "pnl_pct": 10.49, "currency": "INR"},
+    {"ticker": "INFY.NS", "quantity": 15, "buy_price": 1540.0, "current_price": 1621.0, "value": 24315.0, "pnl": 1215.0, "pnl_pct": 5.26, "currency": "INR"},
+    {"ticker": "HDFCBANK.NS", "quantity": 20, "buy_price": 1680.0, "current_price": 1724.0, "value": 34480.0, "pnl": 880.0, "pnl_pct": 2.62, "currency": "INR"}
+  ],
+  "total_value": 96915.0,
+  "total_pnl": 5715.0,
+  "total_pnl_pct": 6.27,
+  "currency": "INR",
+  "as_of": "2026-10-11T05:30:00Z"
+}

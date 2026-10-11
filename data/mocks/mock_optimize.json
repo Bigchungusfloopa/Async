@@ -1,0 +1,13 @@
+{
+  "weights": {"TCS.NS": 0.28, "INFY.NS": 0.32, "HDFCBANK.NS": 0.40},
+  "metrics": {
+    "ann_return": 0.128,
+    "ann_vol": 0.162,
+    "max_drawdown": -0.24,
+    "sharpe": 0.91,
+    "sortino": 1.18,
+    "calmar": 0.53
+  },
+  "reason": "Recommended allocation reduces concentration in TCS.NS and increases HDFC Bank to improve diversification.",
+  "tradeoffs": "The recommended portfolio reduces expected return slightly from 14.2% to 12.8%, but lowers volatility from 18.4% to 16.2% and improves Sharpe ratio from 0.82 to 0.91."
+}

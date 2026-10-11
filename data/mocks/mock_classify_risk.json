@@ -1,0 +1,10 @@
+{
+  "label": "Medium",
+  "probs": {"Low": 0.18, "Medium": 0.62, "High": 0.20},
+  "top_factors": [
+    "Annualized volatility is 18.4%, above the Low-risk threshold.",
+    "Average pairwise correlation is 0.61 — limited diversification.",
+    "TCS.NS contributes 42% of portfolio risk despite being 33% of allocation."
+  ],
+  "explanation": "Your portfolio is classified as Medium risk. The primary drivers are moderate volatility of 18.4% and a high risk concentration in TCS.NS. The average correlation of 0.61 suggests limited diversification benefits across assets."
+}

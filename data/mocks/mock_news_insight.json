@@ -1,0 +1,16 @@
+{
+  "sentiment": "Neutral",
+  "summary": "TCS and Infosys show stable earnings guidance for Q3 FY26. HDFC Bank reports strong loan growth. IT sector faces headwinds from global macro uncertainty, while banking stocks remain resilient on domestic demand.",
+  "risks": [
+    "US recession fears may impact IT export revenue",
+    "Rising US Fed rates could pressure growth valuations",
+    "Rupee depreciation risk for import-heavy sectors"
+  ],
+  "headlines": [
+    {"title": "TCS Q2 Results Beat Estimates on Strong BFSI Demand", "url": "https://example.com/1", "source": "Economic Times"},
+    {"title": "Infosys Raises FY26 Revenue Guidance to 4.5%-5%", "url": "https://example.com/2", "source": "Mint"},
+    {"title": "HDFC Bank Net Profit Up 18% YoY on Loan Growth", "url": "https://example.com/3", "source": "Business Standard"}
+  ],
+  "sector_trends": "IT sector showing resilience; Banking outperforming broader market",
+  "source": "cache"
+}
