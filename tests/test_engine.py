@@ -143,8 +143,9 @@ def test_rf_defaults_follow_currency():
 def test_feature_inputs_keys():
     px = make_prices(["A.NS", "B.NS", "C.NS"], seed=7)
     f = metrics.feature_inputs(px, {"A.NS": 0.5, "B.NS": 0.3, "C.NS": 0.2})
-    assert set(f) == {"ann_return", "ann_vol", "max_drawdown", "avg_corr", "hhi", "effective_n",
-                      "top_weight", "skew", "kurtosis"}
+    assert set(f) == {"ann_return", "ann_vol", "max_drawdown", "sharpe", "avg_corr", "hhi", "effective_n",
+                      "top_weight", "skew", "kurtosis", "n_assets", "downside_dev"}
+    assert f["n_assets"] == 3 and f["downside_dev"] > 0
     assert f["top_weight"] == pytest.approx(0.5)
 
 

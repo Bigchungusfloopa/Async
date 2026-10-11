@@ -6,7 +6,8 @@ Tiers, fastest first (per ticker):  local parquet cache  ->  Supabase ``price_ca
 API notes
 * ``end`` is **inclusive** here (yfinance's own ``end`` is exclusive; we add a day internally).
 * ``df.attrs`` carries metadata for the UI: ``source`` ("live" | "cache" | "fallback"), ``dropped``,
-  ``dropped_reasons``, ``currencies``, ``mixed_currency``, ``warnings``, ``as_of``.
+  ``dropped_reasons``, ``currencies``, ``mixed_currency``, ``warnings``, ``as_of``, ``bad_ticks`` (glitch
+  prices removed) and ``suspect_breaks`` (huge one-day moves left in place, likely unadjusted splits).
   pandas keeps attrs through most slicing, but read them right after the call.
 * Pure python: no Streamlit. Caching decorators belong to the UI layer.
 """
@@ -110,6 +111,29 @@ def _record_attempt(ticker: str, fetch_from: pd.Timestamp, fetch_to: pd.Timestam
         if head:
             prev = _head_tried.get(ticker)
             _head_tried[ticker] = fetch_from if prev is None else min(prev, fetch_from)
+
+
+def clean_bad_ticks(s: pd.Series, window: int = 11, ratio: float = 2.0) -> tuple[pd.Series, list[pd.Timestamp]]:
+    """Blank out transient bad ticks: points more than ``ratio``x away from the centred rolling median.
+
+    Yahoo occasionally serves prices off by 10x/100x for a day or two (e.g. GOLDBEES.NS, NIFTYBEES.NS on
+    2019-12-19). A genuine crash persists, so it moves the rolling median with it and is *not* flagged.
+    """
+    if len(s) < window:
+        return s, []
+    med = s.rolling(window, center=True, min_periods=window // 2).median()
+    r = s / med
+    bad = (r > ratio) | (r < 1.0 / ratio)
+    if not bad.any():
+        return s, []
+    return s.mask(bad), list(s.index[bad.to_numpy()])
+
+
+def suspect_breaks(s: pd.Series, threshold: float = 0.4) -> list[tuple[pd.Timestamp, float]]:
+    """Single-day |log return| above ``threshold`` that did NOT revert: usually a split / demerger that the
+    data provider failed to back-adjust (e.g. TMPV.NS on 2025-10-14). Reported, never silently altered."""
+    lr = np.log(s.dropna()).diff().dropna()
+    return [(d, float(v)) for d, v in lr[lr.abs() > threshold].items()]
 
 
 def _read_fallback(ticker: str) -> pd.Series | None:
@@ -267,6 +291,8 @@ def get_prices(tickers: list[str], start: str, end: str, align: str = "inner",
     dropped: list[str] = []
     reasons: dict[str, str] = {}
     cols: dict[str, pd.Series] = {}
+    bad_ticks: dict[str, list[str]] = {}
+    breaks: dict[str, list] = {}
     win_days = max(1, int(np.busday_count(start_ts.date(), (end_eff + pd.Timedelta(days=1)).date())))
     required = int(min_rows if min_rows is not None else max(20, min(MIN_ROWS, 0.8 * win_days)))
     for t in tickers:
@@ -275,7 +301,17 @@ def get_prices(tickers: list[str], start: str, end: str, align: str = "inner",
             dropped.append(t)
             reasons[t] = "no data found (invalid ticker or offline with no cache)"
             continue
+        s, bad_dates = clean_bad_ticks(s)
+        if bad_dates:
+            bad_ticks[t] = [d.date().isoformat() for d in bad_dates]
+            warnings.append(f"{t}: ignored {len(bad_dates)} bad price tick(s) around {bad_dates[0].date()} "
+                            f"(provider glitch)")
         s = s.loc[start_ts:end_ts]
+        brk = suspect_breaks(s)
+        if brk:
+            breaks[t] = [(d.date().isoformat(), round(v, 4)) for d, v in brk]
+            warnings.append(f"{t}: price moved {np.expm1(brk[0][1]):+.0%} in one day on {brk[0][0].date()} - "
+                            f"possibly an unadjusted split/demerger, not a real loss")
         if len(s) < required:
             dropped.append(t)
             reasons[t] = f"only {len(s)} rows in the window (< {required} required)"
@@ -305,6 +341,7 @@ def get_prices(tickers: list[str], start: str, end: str, align: str = "inner",
         source="fallback" if fallback_used else ("live" if live_used else "cache"),
         dropped=dropped, dropped_reasons=reasons, currencies=currencies, mixed_currency=mixed,
         warnings=warnings, as_of=(df.index[-1].date().isoformat() if not df.empty else None),
+        bad_ticks=bad_ticks, suspect_breaks=breaks,
     )
     return df
 

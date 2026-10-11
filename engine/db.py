@@ -221,12 +221,15 @@ def upsert_prices(prices: pd.DataFrame) -> int:
 
 
 # --------------------------------------------------------------------------- llm_cache (used by P2's llm.py)
-def llm_cache_get(key: str) -> dict | None:
+def llm_cache_get(key: str, remote: bool = True) -> dict | None:
     """``{"response","provider","task","lang"}`` for a cache key (sha256 of task+prompt+lang), else None.
-    The local mirror is checked first (instant); a remote hit is written through to it."""
+    The local mirror is checked first (instant); a remote hit is written through to it.
+    ``remote=False`` never touches the network (used by the LLM wrapper's Offline mode)."""
     local = _read_local("llm_cache.json", {})
     if key in local:
         return local[key]
+    if not remote:
+        return None
     ok, res = _remote(lambda c: c.table("llm_cache").select("response,provider,task,lang")
                       .eq("key", key).limit(1).execute(), "llm_cache get")
     if ok and res.data:
@@ -237,13 +240,15 @@ def llm_cache_get(key: str) -> dict | None:
     return None
 
 
-def llm_cache_put(key: str, task: str, lang: str, response: str, provider: str = "") -> bool:
+def llm_cache_put(key: str, task: str, lang: str, response: str, provider: str = "",
+                  remote: bool = True) -> bool:
     """Store a response locally (always) and in Supabase (when reachable). True if stored anywhere."""
     row = {"key": key, "task": task, "lang": lang, "response": response, "provider": provider}
     local = _read_local("llm_cache.json", {})
     local[key] = {k: row[k] for k in ("response", "provider", "task", "lang")}
     _write_local("llm_cache.json", local)
-    _remote(lambda c: c.table("llm_cache").upsert(row, on_conflict="key").execute(), "llm_cache put")
+    if remote:
+        _remote(lambda c: c.table("llm_cache").upsert(row, on_conflict="key").execute(), "llm_cache put")
     return True
 
 

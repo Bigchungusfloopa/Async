@@ -134,6 +134,11 @@ def _max_drawdown(value: np.ndarray) -> float:
 
 def _compute(rp: np.ndarray, w: np.ndarray, cov: np.ndarray, rf: float) -> dict:
     """All ten headline metrics from portfolio daily log returns ``rp`` and annualised ``cov``."""
+    return _compute_ex(rp, w, cov, rf)[0]
+
+
+def _compute_ex(rp: np.ndarray, w: np.ndarray, cov: np.ndarray, rf: float) -> tuple[dict, float]:
+    """Same as :func:`_compute` but also returns the annualised downside deviation below ``rf``."""
     ann_return = float(np.expm1(rp.mean() * TRADING_DAYS))
     ann_vol = float(np.sqrt(max(w @ cov @ w, 0.0)))
     value = np.exp(np.concatenate(([0.0], np.cumsum(rp))))
@@ -147,7 +152,7 @@ def _compute(rp: np.ndarray, w: np.ndarray, cov: np.ndarray, rf: float) -> dict:
     cvar = float(np.sort(rp)[:k].mean())
 
     hhi = float(np.sum(w ** 2))
-    return {
+    metrics = {
         "ann_return": ann_return,
         "ann_vol": ann_vol,
         "max_drawdown": mdd,
@@ -159,6 +164,7 @@ def _compute(rp: np.ndarray, w: np.ndarray, cov: np.ndarray, rf: float) -> dict:
         "hhi": hhi,
         "effective_n": _safe_div(1.0, hhi),
     }
+    return metrics, downside_dev
 
 
 # --------------------------------------------------------------------------- public API
@@ -207,12 +213,14 @@ def return_contribution(prices: pd.DataFrame, weights: dict) -> pd.Series:
 def feature_inputs(prices: pd.DataFrame, weights: dict, rf: float | None = None) -> dict:
     """Raw ingredients for P2's ``ml/features.py`` so training and inference use identical code.
 
-    Keys: ann_return, ann_vol, max_drawdown, avg_corr, hhi, effective_n, top_weight, skew, kurtosis
-    (``skew``/``kurtosis`` = unbiased skewness and *excess* kurtosis of daily portfolio log returns).
+    Keys: ann_return, ann_vol, max_drawdown, sharpe, avg_corr, hhi, effective_n, top_weight, skew,
+    kurtosis, n_assets, downside_dev (``skew``/``kurtosis`` = unbiased skewness and *excess* kurtosis of
+    daily portfolio log returns; ``downside_dev`` = annualised, below the daily risk-free rate).
     """
     p = prepare(prices, weights)
     rp = p.logret @ p.w
-    m = _compute(rp, p.w, lw_covariance(p.logret), default_rf(p.tickers, p.w) if rf is None else rf)
+    m, downside_dev = _compute_ex(rp, p.w, lw_covariance(p.logret),
+                                  default_rf(p.tickers, p.w) if rf is None else rf)
     s = pd.Series(rp)
     skew = s.skew() if len(s) >= 3 else 0.0
     kurt = s.kurt() if len(s) >= 4 else 0.0
@@ -220,6 +228,7 @@ def feature_inputs(prices: pd.DataFrame, weights: dict, rf: float | None = None)
         "ann_return": m["ann_return"], "ann_vol": m["ann_vol"], "max_drawdown": m["max_drawdown"],
         "avg_corr": m["avg_corr"], "hhi": m["hhi"], "effective_n": m["effective_n"],
         "top_weight": float(p.w.max()),
+        "sharpe": m["sharpe"], "downside_dev": float(downside_dev), "n_assets": int(len(p.w)),
         "skew": float(skew) if np.isfinite(skew) else 0.0,
         "kurtosis": float(kurt) if np.isfinite(kurt) else 0.0,
     }

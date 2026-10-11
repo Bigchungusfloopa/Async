@@ -164,7 +164,8 @@ def _asset_reason(i: int, direction: str, mode: str, base: np.ndarray, rc: np.nd
     return "this rebalances toward the objective"
 
 
-def _tradeoffs(m0: dict, m1: dict, baseline: str) -> str:
+def tradeoffs_text(m0: dict, m1: dict, baseline: str) -> str:
+    """Plain-English trade-off sentence(s) for before/after metrics (also used by ml/explain.py)."""
     dv, dr = m1["ann_vol"] - m0["ann_vol"], m1["ann_return"] - m0["ann_return"]
     dd = m1["max_drawdown"] - m0["max_drawdown"]
     pts = lambda x: f"{abs(x) * 100:.1f} points"
@@ -287,7 +288,7 @@ def optimize(prices: pd.DataFrame, risk_level: str, bounds: tuple[float, float] 
 
     return {
         "weights": weights, "metrics": m1, "reason": reason,
-        "tradeoffs": _tradeoffs(m0, m1, baseline_label), "mode": mode,
+        "tradeoffs": tradeoffs_text(m0, m1, baseline_label), "mode": mode,
         "before_weights": base_w, "before_metrics": m0,
         "bounds_used": (float(lo), float(hi)), "risk_level": level, "return_shrinkage": shrinkage_used,
     }
