@@ -1,0 +1,47 @@
+{
+ "weights": {
+  "TCS.NS": 0.25,
+  "INFY.NS": 0.15,
+  "HDFCBANK.NS": 0.3,
+  "AAPL": 0.3
+ },
+ "metrics": {
+  "ann_return": 0.125,
+  "ann_vol": 0.145,
+  "max_drawdown": -0.17,
+  "sharpe": 0.62,
+  "sortino": 0.91,
+  "calmar": 0.74,
+  "cvar_95": -0.024,
+  "avg_corr": 0.38,
+  "hhi": 0.26,
+  "effective_n": 3.85
+ },
+ "reason": "Objective: maximum Sharpe ratio (Medium risk). Volatility goes from 19.0% to 14.5% and expected return from 14.0% to 12.5%. Biggest changes: TCS.NS 40% -> 25% (it drives 52% of your risk); HDFCBANK.NS 20% -> 30% (low correlation with the rest); AAPL 15% -> 30% (better return per unit of risk).",
+ "tradeoffs": "You give up 1.5 points of historical annual return to cut volatility by 4.5 points and shrink the worst drawdown from -23% to -17%.",
+ "mode": "max_sharpe",
+ "before_weights": {
+  "TCS.NS": 0.4,
+  "INFY.NS": 0.3,
+  "HDFCBANK.NS": 0.2,
+  "AAPL": 0.1
+ },
+ "before_metrics": {
+  "ann_return": 0.14,
+  "ann_vol": 0.19,
+  "max_drawdown": -0.23,
+  "sharpe": 0.55,
+  "sortino": 0.8,
+  "calmar": 0.6,
+  "cvar_95": -0.031,
+  "avg_corr": 0.42,
+  "hhi": 0.31,
+  "effective_n": 3.23
+ },
+ "bounds_used": [
+  0.05,
+  0.4
+ ],
+ "risk_level": "Medium",
+ "return_shrinkage": 0.5
+}

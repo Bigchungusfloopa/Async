@@ -1,0 +1,37 @@
+{
+ "TCS.NS": {
+  "ret": 0.16,
+  "vol": 0.24,
+  "kind": "asset"
+ },
+ "INFY.NS": {
+  "ret": 0.13,
+  "vol": 0.26,
+  "kind": "asset"
+ },
+ "HDFCBANK.NS": {
+  "ret": 0.12,
+  "vol": 0.22,
+  "kind": "asset"
+ },
+ "AAPL": {
+  "ret": 0.21,
+  "vol": 0.28,
+  "kind": "asset"
+ },
+ "Original": {
+  "ret": 0.14,
+  "vol": 0.19,
+  "kind": "portfolio"
+ },
+ "Recommended": {
+  "ret": 0.125,
+  "vol": 0.145,
+  "kind": "portfolio"
+ },
+ "Benchmark": {
+  "ret": 0.115,
+  "vol": 0.15,
+  "kind": "benchmark"
+ }
+}

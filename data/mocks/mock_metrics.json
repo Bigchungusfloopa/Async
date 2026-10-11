@@ -1,0 +1,12 @@
+{
+ "ann_return": 0.14,
+ "ann_vol": 0.19,
+ "max_drawdown": -0.23,
+ "sharpe": 0.55,
+ "sortino": 0.8,
+ "calmar": 0.6,
+ "cvar_95": -0.031,
+ "avg_corr": 0.42,
+ "hhi": 0.31,
+ "effective_n": 3.23
+}

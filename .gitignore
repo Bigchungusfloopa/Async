@@ -1,0 +1,11 @@
+.streamlit/secrets.toml
+.env
+__pycache__/
+*.pyc
+.venv/
+data/cache/
+.pytest_cache/
+.DS_Store
+# third-party agent skills (re-install with: npx skills add supabase/agent-skills; see skills-lock.json)
+.agents/
+.claude/
