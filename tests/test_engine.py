@@ -356,6 +356,23 @@ def test_retries_then_fallback_when_offline(monkeypatch, isolated):
     assert "NOPE.NS" in out.attrs["dropped_reasons"]
 
 
+def test_offline_fallback_keeps_serving_on_consecutive_calls(monkeypatch, isolated):
+    """A failed download starts a short retry cooldown; the fallback files must still answer the next call."""
+    monkeypatch.setattr(data, "_download", lambda *a, **k: (_ for _ in ()).throw(ConnectionError("offline")))
+    fb = data.FALLBACK_DIR
+    fb.mkdir(parents=True)
+    for t in ("TCS.NS", "^NSEI"):
+        s = fake_series(t, "2020-01-01", "2024-06-28")
+        s.rename("adj_close").rename_axis("date").to_frame().to_parquet(fb / f"{t}.parquet")
+    first = data.get_prices(["TCS.NS"], "2021-01-01", "2023-12-29")
+    second = data.get_prices(["TCS.NS"], "2021-01-01", "2023-12-29")          # inside the retry cooldown
+    assert first.attrs["source"] == second.attrs["source"] == "fallback"
+    pd.testing.assert_frame_equal(first, second)
+    bench = data.get_benchmark("^NSEI", "2021-01-01", "2023-12-29")
+    again = data.get_benchmark("^NSEI", "2021-01-01", "2023-12-29")
+    assert len(bench) == len(again) > 500
+
+
 def test_short_history_ticker_is_dropped(monkeypatch, downloader):
     real = data._download
 

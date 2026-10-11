@@ -9,3 +9,4 @@ data/cache/
 # third-party agent skills (re-install with: npx skills add supabase/agent-skills; see skills-lock.json)
 .agents/
 .claude/
+*.pyo

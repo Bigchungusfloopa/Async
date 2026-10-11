@@ -1,221 +1,492 @@
-"""UI strings (English / Hindi / Marathi) and the fixed translation glossary.
+"""
+ml/i18n.py - the single i18n module for the whole app.
 
-* ``t(key, lang)`` falls back to English, then to the key itself - the UI never shows a KeyError.
-* P3 adds keys to the ``en`` table; P2 fills ``hi`` / ``mr`` (``missing_keys(lang)`` lists the gaps).
-* Numbers, tickers and ML always stay English/ASCII internally; only labels and explanation text are localised.
-* Hindi/Marathi wording below is a careful first pass and should be reviewed by a native speaker.
+* ``_LABELS``      : UI labels written for the Streamlit front end (verbatim, P3).
+* ``STRINGS``      : ``ml.i18n_strings`` (P2) overlaid with ``_LABELS``; the UI labels win on shared keys.
+* ``t(key, lang)`` : localised string, English fallback, then the key; accepts ``{}`` positional or ``{name}``
+                     keyword placeholders.
+* ``set_offline`` / ``usage_stats`` : thin wrappers over ``ml.llm`` (the front end imports them from here).
+No Streamlit import: this package stays UI-free.
 """
 from __future__ import annotations
 
-LANGUAGES = {"en": "English", "hi": "हिन्दी", "mr": "मराठी"}
+import re
 
-STRINGS: dict[str, dict[str, str]] = {
+from . import llm
+from .i18n_strings import GLOSSARY, LANGUAGE_NAMES, LANGUAGES, STRINGS as _ML_STRINGS
+
+_LABELS = {
     "en": {
-        # app shell
-        "app_title": "Investment Risk Prediction System",
-        "app_subtitle": "Analyse a portfolio, understand its risk and see a better allocation",
-        "disclaimer": "Educational tool, not financial advice. Past performance does not guarantee future results.",
+        # Sidebar
+        "sidebar_title": "Portfolio Settings",
         "language": "Language",
-        "offline_mode": "Offline mode",
-        "offline_help": "Use only cached results and templates; make no AI calls.",
-        "usage_panel": "AI usage (this session)",
-        "calls": "calls", "cache_hits": "cache hits", "failures": "failures",
-        # tabs
-        "tab_build": "Build portfolio", "tab_risk": "Risk", "tab_allocation": "Allocation",
-        "tab_simulate": "Simulate", "tab_track": "Track", "tab_compare": "Compare",
-        "tab_scenarios": "Scenarios", "tab_news": "News",
-        # inputs
-        "tickers": "Stocks / tickers", "add_ticker": "Add a ticker", "amount": "Amount",
-        "weights": "Weights (%)", "total_investment": "Total investment", "risk_preference": "Risk preference",
-        "date_range": "Date range", "start_date": "Start date", "end_date": "End date", "benchmark": "Benchmark",
-        "analyze": "Analyse", "validate": "Check tickers", "invalid_ticker": "Ticker not found",
-        "voice_input": "Voice input", "record": "Record", "transcript": "Transcript",
-        "transcript_help": "Correct the text if it was misheard, then press Extract.",
-        "extract": "Extract portfolio", "apply_to_form": "Apply to form",
-        "save_portfolio": "Save portfolio", "load_portfolio": "Load portfolio", "portfolio_name": "Portfolio name",
-        "export_pdf": "Export PDF report",
-        # risk
-        "risk_low": "Low", "risk_medium": "Medium", "risk_high": "High", "risk_label": "Risk level",
-        "risk_prob": "Model confidence", "top_factors": "Main factors", "raises_risk": "raises risk",
-        "lowers_risk": "lowers risk", "explanation": "Explanation",
-        # metrics
-        "ann_return": "Annual return", "ann_vol": "Volatility", "max_drawdown": "Max drawdown",
-        "sharpe": "Sharpe ratio", "sortino": "Sortino ratio", "calmar": "Calmar ratio", "cvar_95": "CVaR (95%)",
-        "avg_corr": "Average correlation", "hhi": "Concentration (HHI)", "effective_n": "Effective no. of assets",
-        "total_return": "Total return",
-        # allocation
-        "recommended": "Recommended", "original": "Original", "equal_weight": "Equal weight",
-        "why_changed": "Why the weights changed", "tradeoffs": "Trade-offs", "optimize": "Optimise allocation",
-        "before": "Before", "after": "After",
-        # simulate
-        "growth_of_100": "Growth of ₹100", "regime": "Market period", "custom_range": "Custom range",
-        "covid_crash": "COVID crash", "bull_run_2021": "2021 bull run", "bear_2022": "2022 bear / volatile",
-        "last_year": "Last 1 year",
-        # track
-        "ticker": "Ticker", "quantity": "Quantity", "buy_price": "Buy price", "current_price": "Current price",
-        "value": "Value", "pnl": "Gain / loss", "pnl_pct": "Gain / loss %", "allocation": "Allocation",
-        "as_of": "As of", "data_delayed": "Prices are the latest available close and may be delayed.",
-        # scenarios
-        "scenario": "Scenario", "market_crash_20": "Market crash -20%", "market_crash_30": "Market crash -30%",
-        "recovery_15": "Recovery +15%", "vol_x2": "Volatility x2", "sector_drop": "Sector drop -30%",
-        "sector": "Sector", "new_value": "New value", "monte_carlo": "Monte Carlo (1,000 paths)",
-        "prob_loss": "Probability of loss", "expected_shortfall": "Expected shortfall (worst 5%)",
-        "percentile_5": "5th percentile", "percentile_50": "Median", "percentile_95": "95th percentile",
-        # news
-        "news_title": "AI market intelligence",
-        "news_supplementary": "Supplementary information only - it is not part of the ML risk prediction.",
-        "sentiment": "Sentiment", "sentiment_positive": "Positive", "sentiment_neutral": "Neutral",
-        "sentiment_negative": "Negative", "sector_trends": "Sector trends", "risks": "Risks",
-        "headlines": "Headlines", "refresh": "Refresh",
-        # status / notices
-        "loading": "Loading...", "error_generic": "Something went wrong. Please try again.",
-        "no_data": "No data available.", "data_fallback_notice": "Live prices unavailable - showing saved data.",
-        "mixed_currency_warning": "Mixed currencies: compare returns in % terms.",
-        "llm_unavailable_notice": "AI summary unavailable - showing the built-in explanation.",
-        "past_performance": "Past performance is not a guarantee of future results.",
+        "offline_mode": "Offline Mode",
+        "llm_usage": "LLM Usage Panel",
+        "voice_input": "Voice Input",
+        "assets": "Select Assets",
+        "free_text_ticker": "Add ticker manually",
+        "amounts_weights": "Amounts / Weights",
+        "amount_col": "Amount (₹)",
+        "weight_col": "Weight (%)",
+        "total_investment": "Total Investment (₹)",
+        "risk_level": "Risk Preference",
+        "Low": "Low",
+        "Medium": "Medium",
+        "High": "High",
+        "date_range": "Date Range",
+        "start_date": "Start Date",
+        "end_date": "End Date",
+        "benchmark": "Benchmark",
+        "advanced": "Advanced",
+        "risk_free_rate": "Risk-Free Rate (%)",
+        "session_name": "Portfolio Name",
+        "save_portfolio": "Save Portfolio",
+        "load_portfolio": "Load Portfolio",
+        "export_pdf": "Export PDF",
+        "record_audio": "Record Audio",
+        "fill_portfolio": "Fill Portfolio from Transcript",
+        "transcript": "Transcript (editable)",
+        "unresolved": "Unresolved tickers",
+
+        # Tabs
+        "tab_risk": "Risk",
+        "tab_allocation": "Allocation",
+        "tab_simulate": "Simulate",
+        "tab_track": "Track",
+        "tab_compare": "Compare",
+        "tab_scenarios": "Scenarios",
+        "tab_news": "Market Intel",
+
+        # Risk tab
+        "risk_label": "Risk Label",
+        "class_probs": "Classification Probabilities",
+        "metric_return": "Ann. Return",
+        "metric_vol": "Ann. Volatility",
+        "metric_drawdown": "Max Drawdown",
+        "metric_sharpe": "Sharpe Ratio",
+        "metric_sortino": "Sortino Ratio",
+        "metric_cvar": "CVaR 95%",
+        "correlation_heatmap": "Correlation Heatmap",
+        "risk_contribution": "Risk Contribution vs Weight",
+        "top_factors": "Top Risk Factors",
+        "explanation": "Explanation",
+
+        # Allocation tab
+        "original_weights": "Original Weights",
+        "recommended_weights": "Recommended Weights",
+        "weight_delta": "Δ Weight",
+        "before_metrics": "Before Optimization",
+        "after_metrics": "After Optimization",
+        "reason": "Rationale",
+        "tradeoffs": "Trade-offs",
+        "allocation_explanation": "Detailed Explanation",
+        "change_risk_update": "Change risk level to update allocation instantly.",
+
+        # Simulate tab
+        "regime_presets": "Regime Presets",
+        "covid_crash": "COVID Crash (2020)",
+        "bull_2021": "2021 Bull Run",
+        "bear_2022": "2022 Bear / Volatile",
+        "last_1y": "Last 1 Year",
+        "custom": "Custom Range",
+        "growth_chart": "Growth of ₹100",
+        "log_scale": "Log Scale",
+        "underwater_chart": "Drawdown (Underwater)",
+        "compare_assets": "Compare Alternate Assets",
+
+        # Compare tab
+        "compare_title": "Strategy Comparison",
+        "growth_comparison": "Growth Comparison",
+        "risk_return_scatter": "Risk-Return Scatter",
+        "verdict": "Verdict",
+        "limitations": "Limitations: Past performance does not guarantee future results.",
+
+        # Track tab
+        "holdings_editor": "Holdings Editor",
+        "ticker_col": "Ticker",
+        "qty_col": "Quantity",
+        "buy_price_col": "Buy Price",
+        "current_price_col": "Current Price",
+        "value_col": "Value",
+        "pnl_col": "P&L",
+        "pnl_pct_col": "P&L %",
+        "refresh": "Refresh",
+        "as_of": "As of",
+        "data_delayed": "Market data may be delayed by 15-20 minutes.",
+        "total_value": "Total Value",
+        "total_pnl": "Total P&L",
+
+        # Scenarios tab
+        "scenario_picker": "Select Scenario",
+        "crash_20": "Market Crash -20%",
+        "crash_30": "Market Crash -30%",
+        "recovery_15": "Recovery +15%",
+        "vol_x2": "Volatility ×2",
+        "sector_downturn": "Sector Downturn",
+        "sector_select": "Sector",
+        "downturn_pct": "Downturn (%)",
+        "value_before": "Value Before",
+        "value_after": "Value After",
+        "pct_change": "% Change",
+        "new_risk_label": "New Risk Label",
+        "new_volatility": "New Volatility",
+        "monte_carlo_chart": "Monte Carlo Fan Chart (1,000 paths)",
+        "prob_of_loss": "Probability of Loss",
+        "expected_shortfall": "Expected Shortfall",
+
+        # News tab
+        "news_disclaimer": "Supplementary AI insight. It does not change the ML risk score.",
+        "generate_insight": "Generate Insight",
+        "sentiment": "Sentiment",
+        "sector_trends": "Sector Trends",
+        "risks": "Key Risks",
+        "headlines": "Headlines",
+        "source_live": "Source: Live",
+        "source_cache": "Source: Cache",
+        "source_offline": "Source: Offline",
+
+        # LLM usage
+        "provider": "Provider",
+        "calls": "Calls",
+        "cache_hits": "Cache Hits",
+        "failures": "Failures",
+
+        # Footer
+        "footer": "Educational tool, not financial advice. Past performance does not guarantee future results.",
+
+        # Errors / warnings
+        "invalid_ticker": "Invalid ticker: {}. Please check and try again.",
+        "mixed_currencies": "Mixed currencies detected. Comparisons shown in percentage terms.",
+        "using_fallback": "ℹ Using saved/cached data (live fetch failed).",
+        "llm_offline": "ℹ LLM result from cache (offline mode or quota exceeded).",
+        "no_data": "No data available. Please check your inputs.",
+        "retry": "Please retry or check your internet connection.",
+        "short_history": "{} has less than 1 year of history. Results may be less reliable.",
+        "single_asset": "ℹ Single-asset portfolio detected. Diversification metrics not applicable.",
+        "dropped_tickers": "Some tickers were dropped due to insufficient data: {}",
     },
+
     "hi": {
-        "app_title": "निवेश जोखिम पूर्वानुमान प्रणाली",
-        "app_subtitle": "पोर्टफोलियो का विश्लेषण करें, उसका जोखिम समझें और बेहतर आवंटन देखें",
-        "disclaimer": "यह केवल शैक्षिक उपकरण है, वित्तीय सलाह नहीं। पिछला प्रदर्शन भविष्य के नतीजों की गारंटी नहीं देता।",
-        "language": "भाषा",
-        "offline_mode": "ऑफ़लाइन मोड",
-        "offline_help": "केवल सहेजे गए नतीजे और टेम्पलेट इस्तेमाल करें; कोई AI कॉल न करें।",
-        "usage_panel": "AI उपयोग (इस सत्र में)",
-        "calls": "कॉल", "cache_hits": "कैश हिट", "failures": "विफलताएँ",
-        "tab_build": "पोर्टफोलियो बनाएँ", "tab_risk": "जोखिम", "tab_allocation": "आवंटन",
-        "tab_simulate": "सिमुलेशन", "tab_track": "ट्रैकिंग", "tab_compare": "तुलना",
-        "tab_scenarios": "परिदृश्य", "tab_news": "समाचार",
-        "tickers": "शेयर / टिकर", "add_ticker": "टिकर जोड़ें", "amount": "राशि",
-        "weights": "वज़न (%)", "total_investment": "कुल निवेश", "risk_preference": "जोखिम की पसंद",
-        "date_range": "तारीख़ की सीमा", "start_date": "शुरू की तारीख़", "end_date": "अंतिम तारीख़",
-        "benchmark": "बेंचमार्क",
-        "analyze": "विश्लेषण करें", "validate": "टिकर जाँचें", "invalid_ticker": "टिकर नहीं मिला",
-        "voice_input": "आवाज़ से इनपुट", "record": "रिकॉर्ड करें", "transcript": "लिखित पाठ",
-        "transcript_help": "अगर गलत सुना गया हो तो पाठ सुधारें, फिर 'निकालें' दबाएँ।",
-        "extract": "पोर्टफोलियो निकालें", "apply_to_form": "फ़ॉर्म में भरें",
-        "save_portfolio": "पोर्टफोलियो सहेजें", "load_portfolio": "पोर्टफोलियो खोलें",
-        "portfolio_name": "पोर्टफोलियो का नाम", "export_pdf": "PDF रिपोर्ट निकालें",
-        "risk_low": "कम", "risk_medium": "मध्यम", "risk_high": "ज़्यादा", "risk_label": "जोखिम स्तर",
-        "risk_prob": "मॉडल का भरोसा", "top_factors": "मुख्य कारक", "raises_risk": "जोखिम बढ़ाता है",
-        "lowers_risk": "जोखिम घटाता है", "explanation": "स्पष्टीकरण",
-        "ann_return": "वार्षिक रिटर्न", "ann_vol": "अस्थिरता", "max_drawdown": "अधिकतम गिरावट",
-        "sharpe": "Sharpe ratio", "sortino": "Sortino ratio", "calmar": "Calmar ratio", "cvar_95": "CVaR (95%)",
-        "avg_corr": "औसत सहसंबंध", "hhi": "संकेंद्रण (HHI)", "effective_n": "प्रभावी संपत्तियों की संख्या",
-        "total_return": "कुल रिटर्न",
-        "recommended": "सुझाया गया", "original": "मूल", "equal_weight": "बराबर वज़न",
-        "why_changed": "वज़न क्यों बदले", "tradeoffs": "समझौते (ट्रेड-ऑफ़)", "optimize": "आवंटन अनुकूलित करें",
-        "before": "पहले", "after": "बाद में",
-        "growth_of_100": "₹100 की वृद्धि", "regime": "बाज़ार की अवधि", "custom_range": "अपनी सीमा",
-        "covid_crash": "कोविड गिरावट", "bull_run_2021": "2021 की तेज़ी", "bear_2022": "2022 की मंदी / उतार-चढ़ाव",
-        "last_year": "पिछला 1 वर्ष",
-        "ticker": "टिकर", "quantity": "मात्रा", "buy_price": "ख़रीद मूल्य", "current_price": "वर्तमान मूल्य",
-        "value": "मूल्य", "pnl": "लाभ / हानि", "pnl_pct": "लाभ / हानि %", "allocation": "आवंटन",
-        "as_of": "तारीख़", "data_delayed": "कीमतें उपलब्ध नवीनतम बंद भाव हैं और देरी से हो सकती हैं।",
-        "scenario": "परिदृश्य", "market_crash_20": "बाज़ार गिरावट -20%", "market_crash_30": "बाज़ार गिरावट -30%",
-        "recovery_15": "रिकवरी +15%", "vol_x2": "अस्थिरता x2", "sector_drop": "सेक्टर में गिरावट -30%",
-        "sector": "सेक्टर", "new_value": "नया मूल्य", "monte_carlo": "Monte Carlo (1,000 पथ)",
-        "prob_loss": "नुकसान की संभावना", "expected_shortfall": "अपेक्षित कमी (सबसे ख़राब 5%)",
-        "percentile_5": "5वाँ प्रतिशतक", "percentile_50": "मध्यिका", "percentile_95": "95वाँ प्रतिशतक",
-        "news_title": "AI बाज़ार जानकारी",
-        "news_supplementary": "केवल पूरक जानकारी - यह ML जोखिम पूर्वानुमान का हिस्सा नहीं है।",
-        "sentiment": "भावना", "sentiment_positive": "सकारात्मक", "sentiment_neutral": "तटस्थ",
-        "sentiment_negative": "नकारात्मक", "sector_trends": "सेक्टर के रुझान", "risks": "जोखिम",
-        "headlines": "सुर्खियाँ", "refresh": "ताज़ा करें",
-        "loading": "लोड हो रहा है...", "error_generic": "कुछ गड़बड़ हो गई। कृपया फिर कोशिश करें।",
-        "no_data": "कोई डेटा उपलब्ध नहीं।", "data_fallback_notice": "लाइव कीमतें उपलब्ध नहीं - सहेजा हुआ डेटा दिखाया जा रहा है।",
-        "mixed_currency_warning": "मिली-जुली मुद्राएँ: रिटर्न की तुलना प्रतिशत में करें।",
-        "llm_unavailable_notice": "AI सारांश उपलब्ध नहीं - अंतर्निहित स्पष्टीकरण दिखाया जा रहा है।",
-        "past_performance": "पिछला प्रदर्शन भविष्य के नतीजों की गारंटी नहीं है।",
-    },
-    "mr": {
-        "app_title": "गुंतवणूक जोखीम अंदाज प्रणाली",
-        "app_subtitle": "पोर्टफोलिओचे विश्लेषण करा, त्याची जोखीम समजून घ्या आणि चांगले वाटप पहा",
-        "disclaimer": "हे फक्त शैक्षणिक साधन आहे, आर्थिक सल्ला नाही. मागील कामगिरी भविष्यातील निकालांची हमी देत नाही.",
+        # Sidebar
+        "sidebar_title": "पोर्टफोलियो सेटिंग्स",
         "language": "भाषा",
         "offline_mode": "ऑफलाइन मोड",
-        "offline_help": "फक्त जतन केलेले निकाल आणि साचे वापरा; कोणतेही AI कॉल करू नका.",
-        "usage_panel": "AI वापर (या सत्रात)",
-        "calls": "कॉल", "cache_hits": "कॅश हिट", "failures": "अपयश",
-        "tab_build": "पोर्टफोलिओ तयार करा", "tab_risk": "जोखीम", "tab_allocation": "वाटप",
-        "tab_simulate": "सिम्युलेशन", "tab_track": "ट्रॅकिंग", "tab_compare": "तुलना",
-        "tab_scenarios": "परिस्थिती", "tab_news": "बातम्या",
-        "tickers": "शेअर / टिकर", "add_ticker": "टिकर जोडा", "amount": "रक्कम",
-        "weights": "वजन (%)", "total_investment": "एकूण गुंतवणूक", "risk_preference": "जोखमीची निवड",
-        "date_range": "तारखेची मर्यादा", "start_date": "सुरुवातीची तारीख", "end_date": "शेवटची तारीख",
+        "llm_usage": "LLM उपयोग पैनल",
+        "voice_input": "आवाज़ इनपुट",
+        "assets": "संपत्तियां चुनें",
+        "free_text_ticker": "टिकर मैन्युअल जोड़ें",
+        "amounts_weights": "राशि / भार",
+        "amount_col": "राशि (₹)",
+        "weight_col": "भार (%)",
+        "total_investment": "कुल निवेश (₹)",
+        "risk_level": "जोखिम प्राथमिकता",
+        "Low": "कम",
+        "Medium": "मध्यम",
+        "High": "अधिक",
+        "date_range": "तारीख सीमा",
+        "start_date": "शुरुआती तारीख",
+        "end_date": "अंतिम तारीख",
         "benchmark": "बेंचमार्क",
-        "analyze": "विश्लेषण करा", "validate": "टिकर तपासा", "invalid_ticker": "टिकर सापडला नाही",
-        "voice_input": "आवाजाद्वारे इनपुट", "record": "रेकॉर्ड करा", "transcript": "लिखित मजकूर",
-        "transcript_help": "चुकीचे ऐकले असल्यास मजकूर दुरुस्त करा, मग 'काढा' दाबा.",
-        "extract": "पोर्टफोलिओ काढा", "apply_to_form": "फॉर्ममध्ये भरा",
-        "save_portfolio": "पोर्टफोलिओ जतन करा", "load_portfolio": "पोर्टफोलिओ उघडा",
-        "portfolio_name": "पोर्टफोलिओचे नाव", "export_pdf": "PDF अहवाल काढा",
-        "risk_low": "कमी", "risk_medium": "मध्यम", "risk_high": "जास्त", "risk_label": "जोखीम पातळी",
-        "risk_prob": "मॉडेलचा विश्वास", "top_factors": "मुख्य घटक", "raises_risk": "जोखीम वाढवते",
-        "lowers_risk": "जोखीम कमी करते", "explanation": "स्पष्टीकरण",
-        "ann_return": "वार्षिक परतावा", "ann_vol": "अस्थिरता", "max_drawdown": "कमाल घसरण",
-        "sharpe": "Sharpe ratio", "sortino": "Sortino ratio", "calmar": "Calmar ratio", "cvar_95": "CVaR (95%)",
-        "avg_corr": "सरासरी सहसंबंध", "hhi": "केंद्रीकरण (HHI)", "effective_n": "प्रभावी मालमत्तांची संख्या",
-        "total_return": "एकूण परतावा",
-        "recommended": "सुचवलेले", "original": "मूळ", "equal_weight": "समान वजन",
-        "why_changed": "वजन का बदलले", "tradeoffs": "तडजोडी (ट्रेड-ऑफ)", "optimize": "वाटप अनुकूल करा",
-        "before": "आधी", "after": "नंतर",
-        "growth_of_100": "₹100 ची वाढ", "regime": "बाजाराचा कालावधी", "custom_range": "स्वतःची मर्यादा",
-        "covid_crash": "कोविड घसरण", "bull_run_2021": "2021 ची तेजी", "bear_2022": "2022 ची मंदी / चढ-उतार",
-        "last_year": "मागील 1 वर्ष",
-        "ticker": "टिकर", "quantity": "प्रमाण", "buy_price": "खरेदी किंमत", "current_price": "सध्याची किंमत",
-        "value": "मूल्य", "pnl": "नफा / तोटा", "pnl_pct": "नफा / तोटा %", "allocation": "वाटप",
-        "as_of": "तारीख", "data_delayed": "किमती उपलब्ध असलेल्या ताज्या बंद भावाच्या आहेत आणि उशिरा असू शकतात.",
-        "scenario": "परिस्थिती", "market_crash_20": "बाजार घसरण -20%", "market_crash_30": "बाजार घसरण -30%",
-        "recovery_15": "सुधारणा +15%", "vol_x2": "अस्थिरता x2", "sector_drop": "क्षेत्रात घसरण -30%",
-        "sector": "क्षेत्र", "new_value": "नवे मूल्य", "monte_carlo": "Monte Carlo (1,000 मार्ग)",
-        "prob_loss": "तोट्याची शक्यता", "expected_shortfall": "अपेक्षित तूट (सर्वात वाईट 5%)",
-        "percentile_5": "5 वा शतमान", "percentile_50": "मध्यक", "percentile_95": "95 वा शतमान",
-        "news_title": "AI बाजार माहिती",
-        "news_supplementary": "फक्त पूरक माहिती - हा ML जोखीम अंदाजाचा भाग नाही.",
-        "sentiment": "भावना", "sentiment_positive": "सकारात्मक", "sentiment_neutral": "तटस्थ",
-        "sentiment_negative": "नकारात्मक", "sector_trends": "क्षेत्रातील कल", "risks": "जोखमी",
-        "headlines": "ठळक बातम्या", "refresh": "ताजे करा",
-        "loading": "लोड होत आहे...", "error_generic": "काहीतरी चूक झाली. कृपया पुन्हा प्रयत्न करा.",
-        "no_data": "कोणताही डेटा उपलब्ध नाही.", "data_fallback_notice": "थेट किमती उपलब्ध नाहीत - जतन केलेला डेटा दाखवत आहे.",
-        "mixed_currency_warning": "मिश्र चलने: परताव्याची तुलना टक्केवारीत करा.",
-        "llm_unavailable_notice": "AI सारांश उपलब्ध नाही - अंगभूत स्पष्टीकरण दाखवत आहे.",
-        "past_performance": "मागील कामगिरी भविष्यातील निकालांची हमी नाही.",
-    },
-}
+        "advanced": "उन्नत",
+        "risk_free_rate": "जोखिम मुक्त दर (%)",
+        "session_name": "पोर्टफोलियो नाम",
+        "save_portfolio": "पोर्टफोलियो सहेजें",
+        "load_portfolio": "पोर्टफोलियो लोड करें",
+        "export_pdf": "PDF निर्यात करें",
+        "record_audio": "ऑडियो रिकॉर्ड करें",
+        "fill_portfolio": "ट्रांसक्रिप्ट से पोर्टफोलियो भरें",
+        "transcript": "ट्रांसक्रिप्ट (संपादन योग्य)",
+        "unresolved": "अज्ञात टिकर",
 
-# Fixed vocabulary so explanations/news stay consistent across calls and languages. "Sharpe ratio" and
-# "benchmark" keep their English form (transliterated in running text) on purpose.
-GLOSSARY: dict[str, dict[str, str]] = {
-    "hi": {
-        "volatility": "अस्थिरता", "drawdown": "गिरावट", "Sharpe ratio": "Sharpe ratio", "diversification": "विविधीकरण",
-        "benchmark": "बेंचमार्क", "portfolio": "पोर्टफोलियो", "allocation": "आवंटन", "risk": "जोखिम",
-        "risk contribution": "जोखिम में योगदान", "correlation": "सहसंबंध", "return": "रिटर्न",
-        "concentration": "संकेंद्रण", "scenario": "परिदृश्य",
+        # Tabs
+        "tab_risk": "जोखिम",
+        "tab_allocation": "आवंटन",
+        "tab_simulate": "सिमुलेशन",
+        "tab_track": "ट्रैक",
+        "tab_compare": "तुलना",
+        "tab_scenarios": "परिदृश्य",
+        "tab_news": "बाज़ार जानकारी",
+
+        # Risk tab
+        "risk_label": "जोखिम श्रेणी",
+        "class_probs": "वर्गीकरण संभावनाएं",
+        "metric_return": "वार्षिक रिटर्न",
+        "metric_vol": "वार्षिक अस्थिरता",
+        "metric_drawdown": "अधिकतम गिरावट",
+        "metric_sharpe": "शार्प अनुपात",
+        "metric_sortino": "सोर्टिनो अनुपात",
+        "metric_cvar": "CVaR 95%",
+        "correlation_heatmap": "सहसंबंध हीटमैप",
+        "risk_contribution": "जोखिम योगदान बनाम भार",
+        "top_factors": "मुख्य जोखिम कारक",
+        "explanation": "स्पष्टीकरण",
+
+        # Allocation tab
+        "original_weights": "मूल भार",
+        "recommended_weights": "अनुशंसित भार",
+        "weight_delta": "Δ भार",
+        "before_metrics": "अनुकूलन से पहले",
+        "after_metrics": "अनुकूलन के बाद",
+        "reason": "कारण",
+        "tradeoffs": "समझौते",
+        "allocation_explanation": "विस्तृत स्पष्टीकरण",
+        "change_risk_update": "जोखिम स्तर बदलें और आवंटन तुरंत अपडेट होगा।",
+
+        # Simulate tab
+        "regime_presets": "शासन पूर्व-निर्धारित",
+        "covid_crash": "COVID क्रैश (2020)",
+        "bull_2021": "2021 तेजी",
+        "bear_2022": "2022 मंदी / अस्थिर",
+        "last_1y": "पिछले 1 वर्ष",
+        "custom": "कस्टम सीमा",
+        "growth_chart": "₹100 की वृद्धि",
+        "log_scale": "लॉग स्केल",
+        "underwater_chart": "गिरावट (अंडरवाटर)",
+        "compare_assets": "वैकल्पिक संपत्तियों की तुलना",
+
+        # Compare tab
+        "compare_title": "रणनीति तुलना",
+        "growth_comparison": "वृद्धि तुलना",
+        "risk_return_scatter": "जोखिम-रिटर्न स्कैटर",
+        "verdict": "निर्णय",
+        "limitations": "सीमाएं: पिछला प्रदर्शन भविष्य की गारंटी नहीं है।",
+
+        # Track tab
+        "holdings_editor": "होल्डिंग्स संपादक",
+        "ticker_col": "टिकर",
+        "qty_col": "मात्रा",
+        "buy_price_col": "खरीद मूल्य",
+        "current_price_col": "वर्तमान मूल्य",
+        "value_col": "मूल्य",
+        "pnl_col": "P&L",
+        "pnl_pct_col": "P&L %",
+        "refresh": "रिफ्रेश",
+        "as_of": "इस समय तक",
+        "data_delayed": "बाज़ार डेटा 15-20 मिनट देरी से हो सकता है।",
+        "total_value": "कुल मूल्य",
+        "total_pnl": "कुल P&L",
+
+        # Scenarios tab
+        "scenario_picker": "परिदृश्य चुनें",
+        "crash_20": "बाज़ार क्रैश -20%",
+        "crash_30": "बाज़ार क्रैश -30%",
+        "recovery_15": "रिकवरी +15%",
+        "vol_x2": "अस्थिरता ×2",
+        "sector_downturn": "क्षेत्र गिरावट",
+        "sector_select": "क्षेत्र",
+        "downturn_pct": "गिरावट (%)",
+        "value_before": "पहले का मूल्य",
+        "value_after": "बाद का मूल्य",
+        "pct_change": "% परिवर्तन",
+        "new_risk_label": "नई जोखिम श्रेणी",
+        "new_volatility": "नई अस्थिरता",
+        "monte_carlo_chart": "मोंटे कार्लो फैन चार्ट (1,000 पथ)",
+        "prob_of_loss": "नुकसान की संभावना",
+        "expected_shortfall": "अपेक्षित कमी",
+
+        # News tab
+        "news_disclaimer": "सहायक AI अंतर्दृष्टि। यह ML जोखिम स्कोर नहीं बदलती।",
+        "generate_insight": "अंतर्दृष्टि उत्पन्न करें",
+        "sentiment": "भावना",
+        "sector_trends": "क्षेत्र रुझान",
+        "risks": "मुख्य जोखिम",
+        "headlines": "समाचार शीर्षक",
+        "source_live": "स्रोत: लाइव",
+        "source_cache": "स्रोत: कैश",
+        "source_offline": "स्रोत: ऑफलाइन",
+
+        # LLM usage
+        "provider": "प्रदाता",
+        "calls": "कॉल",
+        "cache_hits": "कैश हिट",
+        "failures": "विफलताएं",
+
+        # Footer
+        "footer": "शैक्षिक उपकरण, वित्तीय सलाह नहीं। पिछला प्रदर्शन भविष्य के परिणामों की गारंटी नहीं देता।",
+
+        # Errors
+        "invalid_ticker": "अमान्य टिकर: {}। कृपया जांचें और पुनः प्रयास करें।",
+        "mixed_currencies": "मिश्रित मुद्राएं पाई गईं। तुलना प्रतिशत में दिखाई गई है।",
+        "using_fallback": "ℹ सहेजा गया डेटा उपयोग हो रहा है (लाइव फ़ेच विफल)।",
+        "llm_offline": "ℹ LLM परिणाम कैश से (ऑफलाइन मोड या कोटा समाप्त)।",
+        "no_data": "कोई डेटा उपलब्ध नहीं। कृपया अपने इनपुट जांचें।",
+        "retry": "कृपया पुनः प्रयास करें या इंटरनेट कनेक्शन जांचें।",
+        "short_history": "{} का 1 वर्ष से कम इतिहास है। परिणाम कम विश्वसनीय हो सकते हैं।",
+        "single_asset": "ℹ एकल-संपत्ति पोर्टफोलियो। विविधीकरण मेट्रिक्स लागू नहीं।",
+        "dropped_tickers": "अपर्याप्त डेटा के कारण कुछ टिकर हटाए गए: {}",
     },
+
     "mr": {
-        "volatility": "अस्थिरता", "drawdown": "घसरण", "Sharpe ratio": "Sharpe ratio", "diversification": "विविधीकरण",
-        "benchmark": "बेंचमार्क", "portfolio": "पोर्टफोलिओ", "allocation": "वाटप", "risk": "जोखीम",
-        "risk contribution": "जोखमीतील वाटा", "correlation": "सहसंबंध", "return": "परतावा",
-        "concentration": "केंद्रीकरण", "scenario": "परिस्थिती",
+        # Sidebar
+        "sidebar_title": "पोर्टफोलिओ सेटिंग्ज",
+        "language": "भाषा",
+        "offline_mode": "ऑफलाइन मोड",
+        "llm_usage": "LLM वापर पॅनेल",
+        "voice_input": "आवाज इनपुट",
+        "assets": "मालमत्ता निवडा",
+        "free_text_ticker": "टिकर मॅन्युअली जोडा",
+        "amounts_weights": "रक्कम / वजन",
+        "amount_col": "रक्कम (₹)",
+        "weight_col": "वजन (%)",
+        "total_investment": "एकूण गुंतवणूक (₹)",
+        "risk_level": "जोखीम प्राधान्य",
+        "Low": "कमी",
+        "Medium": "मध्यम",
+        "High": "जास्त",
+        "date_range": "तारीख श्रेणी",
+        "start_date": "सुरुवात तारीख",
+        "end_date": "शेवट तारीख",
+        "benchmark": "बेंचमार्क",
+        "advanced": "प्रगत",
+        "risk_free_rate": "जोखीम-मुक्त दर (%)",
+        "session_name": "पोर्टफोलिओ नाव",
+        "save_portfolio": "पोर्टफोलिओ जतन करा",
+        "load_portfolio": "पोर्टफोलिओ लोड करा",
+        "export_pdf": "PDF निर्यात करा",
+        "record_audio": "ऑडिओ रेकॉर्ड करा",
+        "fill_portfolio": "ट्रान्सक्रिप्टमधून पोर्टफोलिओ भरा",
+        "transcript": "ट्रान्सक्रिप्ट (संपादन करण्यायोग्य)",
+        "unresolved": "अज्ञात टिकर",
+
+        # Tabs
+        "tab_risk": "जोखीम",
+        "tab_allocation": "वाटप",
+        "tab_simulate": "सिम्युलेशन",
+        "tab_track": "ट्रॅक",
+        "tab_compare": "तुलना",
+        "tab_scenarios": "परिस्थिती",
+        "tab_news": "बाजार माहिती",
+
+        # Risk tab
+        "risk_label": "जोखीम श्रेणी",
+        "class_probs": "वर्गीकरण संभाव्यता",
+        "metric_return": "वार्षिक परतावा",
+        "metric_vol": "वार्षिक अस्थिरता",
+        "metric_drawdown": "कमाल घसरण",
+        "metric_sharpe": "शार्प गुणोत्तर",
+        "metric_sortino": "सोर्टिनो गुणोत्तर",
+        "metric_cvar": "CVaR 95%",
+        "correlation_heatmap": "सहसंबंध हीटमॅप",
+        "risk_contribution": "जोखीम योगदान विरुद्ध वजन",
+        "top_factors": "मुख्य जोखीम घटक",
+        "explanation": "स्पष्टीकरण",
+
+        # Allocation tab
+        "original_weights": "मूळ वजन",
+        "recommended_weights": "शिफारस केलेले वजन",
+        "weight_delta": "Δ वजन",
+        "before_metrics": "ऑप्टिमायझेशनपूर्वी",
+        "after_metrics": "ऑप्टिमायझेशननंतर",
+        "reason": "कारण",
+        "tradeoffs": "तडजोडी",
+        "allocation_explanation": "तपशीलवार स्पष्टीकरण",
+        "change_risk_update": "जोखीम पातळी बदला आणि वाटप लगेच अपडेट होईल।",
+
+        # Simulate tab
+        "regime_presets": "शासन पूर्वनिर्धारित",
+        "covid_crash": "COVID क्रॅश (2020)",
+        "bull_2021": "2021 तेजी",
+        "bear_2022": "2022 मंदी / अस्थिर",
+        "last_1y": "मागील 1 वर्ष",
+        "custom": "सानुकूल श्रेणी",
+        "growth_chart": "₹100 ची वाढ",
+        "log_scale": "लॉग स्केल",
+        "underwater_chart": "घसरण (अंडरवॉटर)",
+        "compare_assets": "पर्यायी मालमत्तांची तुलना",
+
+        # Compare tab
+        "compare_title": "धोरण तुलना",
+        "growth_comparison": "वाढ तुलना",
+        "risk_return_scatter": "जोखीम-परतावा स्कॅटर",
+        "verdict": "निर्णय",
+        "limitations": "मर्यादा: मागील कामगिरी भविष्यातील परिणामांची हमी नाही।",
+
+        # Track tab
+        "holdings_editor": "होल्डिंग्ज संपादक",
+        "ticker_col": "टिकर",
+        "qty_col": "प्रमाण",
+        "buy_price_col": "खरेदी किंमत",
+        "current_price_col": "सध्याची किंमत",
+        "value_col": "मूल्य",
+        "pnl_col": "P&L",
+        "pnl_pct_col": "P&L %",
+        "refresh": "रिफ्रेश",
+        "as_of": "पर्यंत",
+        "data_delayed": "बाजार डेटा 15-20 मिनिटे उशीरा असू शकतो।",
+        "total_value": "एकूण मूल्य",
+        "total_pnl": "एकूण P&L",
+
+        # Scenarios tab
+        "scenario_picker": "परिस्थिती निवडा",
+        "crash_20": "बाजार क्रॅश -20%",
+        "crash_30": "बाजार क्रॅश -30%",
+        "recovery_15": "रिकव्हरी +15%",
+        "vol_x2": "अस्थिरता ×2",
+        "sector_downturn": "क्षेत्र घसरण",
+        "sector_select": "क्षेत्र",
+        "downturn_pct": "घसरण (%)",
+        "value_before": "आधीचे मूल्य",
+        "value_after": "नंतरचे मूल्य",
+        "pct_change": "% बदल",
+        "new_risk_label": "नवीन जोखीम श्रेणी",
+        "new_volatility": "नवीन अस्थिरता",
+        "monte_carlo_chart": "मोंटे कार्लो फॅन चार्ट (1,000 मार्ग)",
+        "prob_of_loss": "नुकसानाची शक्यता",
+        "expected_shortfall": "अपेक्षित तूट",
+
+        # News tab
+        "news_disclaimer": "सहायक AI अंतर्दृष्टी। हे ML जोखीम स्कोर बदलत नाही।",
+        "generate_insight": "अंतर्दृष्टी निर्माण करा",
+        "sentiment": "भावना",
+        "sector_trends": "क्षेत्र कल",
+        "risks": "मुख्य जोखीम",
+        "headlines": "बातम्यांचे शीर्षक",
+        "source_live": "स्रोत: लाइव्ह",
+        "source_cache": "स्रोत: कॅश",
+        "source_offline": "स्रोत: ऑफलाइन",
+
+        # LLM usage
+        "provider": "प्रदाता",
+        "calls": "कॉल",
+        "cache_hits": "कॅश हिट",
+        "failures": "अपयश",
+
+        # Footer
+        "footer": "शैक्षणिक साधन, आर्थिक सल्ला नाही। मागील कामगिरी भविष्यातील परिणामांची हमी देत नाही।",
+
+        # Errors
+        "invalid_ticker": "अवैध टिकर: {}। कृपया तपासा आणि पुन्हा प्रयत्न करा।",
+        "mixed_currencies": "मिश्रित चलने आढळली. तुलना टक्केवारीत दाखवली आहे।",
+        "using_fallback": "ℹ जतन केलेला डेटा वापरला जात आहे (लाइव्ह फेच अयशस्वी)।",
+        "llm_offline": "ℹ LLM निकाल कॅशमधून (ऑफलाइन मोड किंवा कोटा संपला)।",
+        "no_data": "कोणताही डेटा उपलब्ध नाही. कृपया तुमचे इनपुट तपासा।",
+        "retry": "कृपया पुन्हा प्रयत्न करा किंवा इंटरनेट कनेक्शन तपासा।",
+        "short_history": "{} चा 1 वर्षापेक्षा कमी इतिहास आहे. परिणाम कमी विश्वसनीय असू शकतात।",
+        "single_asset": "ℹ एकल-मालमत्ता पोर्टफोलिओ. विविधीकरण मेट्रिक्स लागू नाहीत।",
+        "dropped_tickers": "अपुऱ्या डेटामुळे काही टिकर काढले गेले: {}",
     },
 }
-LANGUAGE_NAMES = {"en": "English", "hi": "Hindi (Devanagari script)", "mr": "Marathi (Devanagari script)"}
+
+# --------------------------------------------------------------------------- merged tables + helpers
+STRINGS: dict[str, dict[str, str]] = {
+    lang: {**_ML_STRINGS.get(lang, {}), **_LABELS.get(lang, {})} for lang in ("en", "hi", "mr")
+}
 
 
-def t(key: str, lang: str = "en", **fmt) -> str:
-    """Localised UI string; falls back to English, then to the key. ``fmt`` fills ``{placeholders}``."""
+def t(key: str, lang: str = "en", *args, **fmt) -> str:
+    """Localised string; falls back to English, then to the key. ``{}`` / ``{name}`` placeholders are filled
+    from ``args`` / ``fmt`` (a bad format never raises)."""
     s = STRINGS.get(lang, {}).get(key) or STRINGS["en"].get(key) or key
-    if fmt:
+    if args or fmt:
         try:
-            return s.format(**fmt)
+            s = s.format(*args, **fmt)
         except (KeyError, IndexError, ValueError):
-            return s
+            pass
     return s
 
 
 def missing_keys(lang: str) -> list[str]:
-    """English keys that have no translation in ``lang`` (P3 adds keys, P2 fills them)."""
+    """English keys that have no translation in ``lang``."""
     return sorted(set(STRINGS["en"]) - set(STRINGS.get(lang, {})))
 
 
@@ -224,10 +495,37 @@ def glossary_prompt(lang: str) -> str:
     terms = GLOSSARY.get(lang, {})
     lines = [f"- {en} -> {tr}" for en, tr in terms.items()]
     if terms:
-        levels = ", ".join(f"{lvl} -> {STRINGS[lang]['risk_' + lvl.lower()]}" for lvl in ("Low", "Medium", "High"))
+        levels = ", ".join(f"{lvl} -> {_ML_STRINGS[lang]['risk_' + lvl.lower()]}" for lvl in ("Low", "Medium", "High"))
         lines.append(f"- risk level words (always translate): {levels}")
     return "\n".join(lines)
 
 
 def language_name(lang: str) -> str:
     return LANGUAGE_NAMES.get(lang, lang)
+
+
+def set_offline(offline: bool) -> None:
+    """Offline mode: serve cache/templates only, zero network LLM calls (see ``ml.llm``)."""
+    llm.set_offline(bool(offline))
+
+
+def usage_stats() -> dict:
+    """``{provider: {"calls", "cache_hits", "failures"}}`` for this process (sidebar usage panel)."""
+    return llm.usage_stats()
+
+
+def strip_emojis(text: str) -> str:
+    """Strip all emoji codepoints and selectors from text."""
+    if not isinstance(text, str):
+        return text
+    # Constructed using character codes so this source file contains no literal emoji codepoints
+    pat = (
+        "["
+        + chr(0x1F000) + "-" + chr(0x1FAFF)
+        + chr(0x2600) + "-" + chr(0x27BF)
+        + chr(0x2300) + "-" + chr(0x23FF)
+        + chr(0x2B50) + "-" + chr(0x2B55)
+        + chr(0xFE0F) + chr(0x200D)
+        + "]"
+    )
+    return re.sub(pat, "", text).strip()

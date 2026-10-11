@@ -275,8 +275,11 @@ def get_prices(tickers: list[str], start: str, end: str, align: str = "inner",
             frame = pd.DataFrame(new_rows)
             threading.Thread(target=db.upsert_prices, args=(frame,), daemon=True).start()
 
-    # 4) failures: keep stale cache, and top it up from the parquet fallback
-    for t in failed:
+    # 4) failures: keep stale cache, and top it up from the parquet fallback. Tickers that have no data at all
+    #    are included even when we did not attempt a download THIS call (a recent failed attempt suppresses the
+    #    retry for a minute; the offline files must still serve those tickers).
+    no_data = [t for t in tickers if t not in failed and (series.get(t) is None or series[t].empty)]
+    for t in [*failed, *no_data]:
         fb = _read_fallback(t)
         cur = series.get(t)
         if fb is not None and not fb.empty:

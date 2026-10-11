@@ -1,0 +1,34 @@
+{
+  "risk_contribution": {
+    "TCS.NS": 0.42,
+    "INFY.NS": 0.31,
+    "HDFCBANK.NS": 0.27
+  },
+  "correlation_matrix": {
+    "TCS.NS":     {"TCS.NS": 1.0,  "INFY.NS": 0.72, "HDFCBANK.NS": 0.38},
+    "INFY.NS":    {"TCS.NS": 0.72, "INFY.NS": 1.0,  "HDFCBANK.NS": 0.41},
+    "HDFCBANK.NS":{"TCS.NS": 0.38, "INFY.NS": 0.41, "HDFCBANK.NS": 1.0}
+  },
+  "explain_allocation": "TCS.NS weight is 33% but contributes 42% of portfolio risk, indicating it is a disproportionate risk driver. Increasing HDFC Bank exposure lowers correlation and improves diversification.",
+  "compare_growth": {
+    "Original":    {"2022-01": 100, "2022-04": 108, "2022-07": 112, "2022-10": 118, "2023-01": 125},
+    "Recommended": {"2022-01": 100, "2022-04": 106, "2022-07": 111, "2022-10": 119, "2023-01": 128},
+    "Equal Weight":{"2022-01": 100, "2022-04": 107, "2022-07": 111, "2022-10": 117, "2023-01": 124},
+    "Benchmark":   {"2022-01": 100, "2022-04": 104, "2022-07": 107, "2022-10": 113, "2023-01": 119}
+  },
+  "risk_return_points": [
+    {"name": "TCS.NS",      "ann_return": 0.18, "ann_vol": 0.22, "type": "asset"},
+    {"name": "INFY.NS",     "ann_return": 0.14, "ann_vol": 0.20, "type": "asset"},
+    {"name": "HDFCBANK.NS", "ann_return": 0.12, "ann_vol": 0.16, "type": "asset"},
+    {"name": "Original",    "ann_return": 0.142,"ann_vol": 0.184,"type": "portfolio"},
+    {"name": "Recommended", "ann_return": 0.128,"ann_vol": 0.162,"type": "portfolio"},
+    {"name": "NIFTY 50",    "ann_return": 0.118,"ann_vol": 0.158,"type": "benchmark"}
+  ],
+  "validate_tickers": {"TCS.NS": true, "INFY.NS": true, "HDFCBANK.NS": true},
+  "classify_stressed": {"label": "High", "probs": {"Low": 0.08, "Medium": 0.22, "High": 0.70}},
+  "usage_stats": {
+    "gemini": {"calls": 3, "cache_hits": 2, "failures": 0},
+    "groq": {"calls": 1, "cache_hits": 0, "failures": 0},
+    "mistral": {"calls": 0, "cache_hits": 0, "failures": 0}
+  }
+}

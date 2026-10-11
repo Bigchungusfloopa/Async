@@ -17,7 +17,7 @@ sys.path.insert(0, str(ROOT))
 from engine import data  # noqa: E402
 from engine.universe import load_universe  # noqa: E402
 
-EXTRA = ["INR=X"]   # USD->INR, used by track_holdings to weight mixed-currency portfolios
+EXTRA = ["INR=X", "^GSPC"]   # USD->INR for mixed portfolios; S&P 500 is a benchmark option in the UI
 CHUNK = 20          # tickers per batched request, gentle on Yahoo's rate limits
 
 

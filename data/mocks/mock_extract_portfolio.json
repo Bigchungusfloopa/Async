@@ -1,0 +1,5 @@
+{
+  "tickers": ["TCS.NS", "INFY.NS", "HDFCBANK.NS"],
+  "amounts": {"TCS.NS": 33000, "INFY.NS": 33000, "HDFCBANK.NS": 34000},
+  "risk_level": "Low"
+}

@@ -154,6 +154,7 @@ dump_json({
     "prob_loss": 0.27,
     "expected_shortfall": -0.21,
     "horizon": h, "n_paths": 1000, "block": 10, "seed": 42, "start_value": 100.0,
+    "terminal_values": [round(100 * float(np.exp(rng.normal(0.12, 0.19))), 2) for _ in range(1000)],
 }, MOCK_DIR / "mock_monte_carlo.json")
 
 print("wrote", len(list(MOCK_DIR.glob("mock_*.json"))), "mock files to", MOCK_DIR)

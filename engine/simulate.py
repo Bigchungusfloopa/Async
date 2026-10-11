@@ -292,4 +292,5 @@ def monte_carlo(prices: pd.DataFrame, weights: dict, n: int = 1000, horizon: int
         "prob_loss": float(np.mean(terminal < 0)),
         "expected_shortfall": float(np.sort(terminal)[:k].mean()),
         "horizon": horizon, "n_paths": n, "block": block, "seed": seed, "start_value": 100.0,
+        "terminal_values": np.round(paths[:, -1], 2).tolist(),     # growth of 100 at the horizon, one per path
     }
