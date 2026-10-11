@@ -1,0 +1,22 @@
+[
+ {"lang":"en","text":"I have 50000 rupees and want to invest in TCS and Infosys with low risk","expected":{"tickers":["TCS.NS","INFY.NS"],"amounts":{"TCS.NS":25000,"INFY.NS":25000},"risk_level":"Low"}},
+ {"lang":"en","text":"Put 25000 in HDFC Bank and 25000 in Reliance, medium risk","expected":{"tickers":["HDFCBANK.NS","RELIANCE.NS"],"amounts":{"HDFCBANK.NS":25000,"RELIANCE.NS":25000},"risk_level":"Medium"}},
+ {"lang":"en","text":"I want to buy Apple, Microsoft and Nvidia, 30k total, high risk","expected":{"tickers":["AAPL","MSFT","NVDA"],"amounts":{"AAPL":10000,"MSFT":10000,"NVDA":10000},"risk_level":"High"}},
+ {"lang":"en","text":"Invest 2 lakh in Wipro and ITC, low risk","expected":{"tickers":["WIPRO.NS","ITC.NS"],"amounts":{"WIPRO.NS":100000,"ITC.NS":100000},"risk_level":"Low"}},
+ {"lang":"en","text":"Split 1 lakh between State Bank and ICICI Bank, moderate risk","expected":{"tickers":["SBIN.NS","ICICIBANK.NS"],"amounts":{"SBIN.NS":50000,"ICICIBANK.NS":50000},"risk_level":"Medium"}},
+ {"lang":"en","text":"I would like some gold and Tata Steel, aggressive","expected":{"tickers":["GOLDBEES.NS","TATASTEEL.NS"],"amounts":{},"risk_level":"High"}},
+ {"lang":"en","text":"Allocate 75,000 rupees to Sun Pharma, Cipla and Dr Reddys, low risk please","expected":{"tickers":["SUNPHARMA.NS","CIPLA.NS","DRREDDY.NS"],"amounts":{"SUNPHARMA.NS":25000,"CIPLA.NS":25000,"DRREDDY.NS":25000},"risk_level":"Low"}},
+ {"lang":"hi","text":"Mere paas 50,000 rupaye hain, TCS aur Infosys mein lagana hai, risk kam chahiye.","expected":{"tickers":["TCS.NS","INFY.NS"],"amounts":{"TCS.NS":25000,"INFY.NS":25000},"risk_level":"Low"}},
+ {"lang":"hi","text":"Mujhe 2 lakh rupaye reliance aur hdfc bank mein lagane hain, zyada risk chalega","expected":{"tickers":["RELIANCE.NS","HDFCBANK.NS"],"amounts":{"RELIANCE.NS":100000,"HDFCBANK.NS":100000},"risk_level":"High"}},
+ {"lang":"hi","text":"pachaas hazaar rupaye hain, wipro mein 30 hazaar aur itc mein 20 hazaar, risk madhyam","expected":{"tickers":["WIPRO.NS","ITC.NS"],"amounts":{"WIPRO.NS":30000,"ITC.NS":20000},"risk_level":"Medium"}},
+ {"lang":"hi","text":"मेरे पास एक लाख रुपये हैं, टीसीएस और इन्फोसिस में लगाना है, जोखिम कम","expected":{"tickers":["TCS.NS","INFY.NS"],"amounts":{"TCS.NS":50000,"INFY.NS":50000},"risk_level":"Low"}},
+ {"lang":"hi","text":"मुझे 10 हज़ार रुपये एप्पल और माइक्रोसॉफ्ट में लगाने हैं, जोखिम मध्यम","expected":{"tickers":["AAPL","MSFT"],"amounts":{"AAPL":5000,"MSFT":5000},"risk_level":"Medium"}},
+ {"lang":"hi","text":"sbi aur icici bank mein 40 hazaar lagao, low risk","expected":{"tickers":["SBIN.NS","ICICIBANK.NS"],"amounts":{"SBIN.NS":20000,"ICICIBANK.NS":20000},"risk_level":"Low"}},
+ {"lang":"hi","text":"सोना और टाटा स्टील में पैसे लगाने हैं, ज़्यादा जोखिम","expected":{"tickers":["GOLDBEES.NS","TATASTEEL.NS"],"amounts":{},"risk_level":"High"}},
+ {"lang":"mr","text":"मला ५०,००० रुपये गुंतवायचे आहेत, टीसीएस आणि इन्फोसिसमध्ये, जोखीम कमी हवी","expected":{"tickers":["TCS.NS","INFY.NS"],"amounts":{"TCS.NS":25000,"INFY.NS":25000},"risk_level":"Low"}},
+ {"lang":"mr","text":"माझ्याकडे दोन लाख रुपये आहेत, रिलायन्स आणि एचडीएफसी मध्ये गुंतवायचे, जास्त जोखीम चालेल","expected":{"tickers":["RELIANCE.NS","HDFCBANK.NS"],"amounts":{"RELIANCE.NS":100000,"HDFCBANK.NS":100000},"risk_level":"High"}},
+ {"lang":"mr","text":"विप्रो मध्ये २५ हजार आणि आयटीसी मध्ये २५ हजार गुंतवा, मध्यम जोखीम","expected":{"tickers":["WIPRO.NS","ITC.NS"],"amounts":{"WIPRO.NS":25000,"ITC.NS":25000},"risk_level":"Medium"}},
+ {"lang":"mr","text":"एसबीआय आणि सन फार्मा मध्ये एक लाख, जोखीम कमी","expected":{"tickers":["SBIN.NS","SUNPHARMA.NS"],"amounts":{"SBIN.NS":50000,"SUNPHARMA.NS":50000},"risk_level":"Low"}},
+ {"lang":"mr","text":"मला सोने आणि टायटन मध्ये गुंतवणूक करायची आहे","expected":{"tickers":["GOLDBEES.NS","TITAN.NS"],"amounts":{},"risk_level":null}},
+ {"lang":"mr","text":"३० हजार रुपये ॲपल आणि गूगल मध्ये, जोखीम जास्त","expected":{"tickers":["AAPL","GOOGL"],"amounts":{"AAPL":15000,"GOOGL":15000},"risk_level":"High"}}
+]

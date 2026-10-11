@@ -1,0 +1,37 @@
+{
+ "sentiment": "Neutral",
+ "per_ticker": [
+  {
+   "ticker": "TCS.NS",
+   "sentiment": "Positive",
+   "drivers": "Quarterly results beat expectations."
+  },
+  {
+   "ticker": "INFY.NS",
+   "sentiment": "Neutral",
+   "drivers": "Mixed commentary on deal pipeline."
+  }
+ ],
+ "sector_trends": "Indian IT stocks rallied after results, while US visa rules remain a watch item.",
+ "risks": [
+  "US visa policy changes",
+  "Weak discretionary tech spending"
+ ],
+ "summary": "Sentiment is broadly neutral to positive after results; policy risk remains.",
+ "headlines": [
+  {
+   "title": "TCS shares jump after Q2 results",
+   "source": "Moneycontrol",
+   "url": "https://example.com/1",
+   "ticker": "TCS.NS"
+  },
+  {
+   "title": "Infosys keeps FY guidance unchanged",
+   "source": "Business Standard",
+   "url": "https://example.com/2",
+   "ticker": "INFY.NS"
+  }
+ ],
+ "source": "cache",
+ "ai_available": true
+}

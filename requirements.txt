@@ -8,10 +8,9 @@ lightgbm
 plotly
 supabase
 feedparser
-google-genai
-groq
-mistralai
 fpdf2
 joblib
 pyarrow
 pytest
+httpx
+matplotlib

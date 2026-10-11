@@ -1,0 +1,17 @@
+{
+ "transcribe": "Mere paas 50,000 rupaye hain, TCS aur Infosys mein lagana hai, risk kam chahiye.",
+ "extract_portfolio": {
+  "tickers": [
+   "TCS.NS",
+   "INFY.NS"
+  ],
+  "amounts": {
+   "TCS.NS": 25000,
+   "INFY.NS": 25000
+  },
+  "risk_level": "Low",
+  "unresolved": [],
+  "confidence": 0.95,
+  "source": "llm"
+ }
+}

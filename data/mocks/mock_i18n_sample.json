@@ -1,0 +1,38 @@
+{
+ "en": {
+  "app_title": "Investment Risk Prediction System",
+  "tab_risk": "Risk",
+  "tab_allocation": "Allocation",
+  "analyze": "Analyse",
+  "risk_low": "Low",
+  "risk_medium": "Medium",
+  "risk_high": "High",
+  "ann_vol": "Volatility",
+  "max_drawdown": "Max drawdown",
+  "disclaimer": "Educational tool, not financial advice. Past performance does not guarantee future results."
+ },
+ "hi": {
+  "app_title": "निवेश जोखिम पूर्वानुमान प्रणाली",
+  "tab_risk": "जोखिम",
+  "tab_allocation": "आवंटन",
+  "analyze": "विश्लेषण करें",
+  "risk_low": "कम",
+  "risk_medium": "मध्यम",
+  "risk_high": "ज़्यादा",
+  "ann_vol": "अस्थिरता",
+  "max_drawdown": "अधिकतम गिरावट",
+  "disclaimer": "यह केवल शैक्षिक उपकरण है, वित्तीय सलाह नहीं। पिछला प्रदर्शन भविष्य के नतीजों की गारंटी नहीं देता।"
+ },
+ "mr": {
+  "app_title": "गुंतवणूक जोखीम अंदाज प्रणाली",
+  "tab_risk": "जोखीम",
+  "tab_allocation": "वाटप",
+  "analyze": "विश्लेषण करा",
+  "risk_low": "कमी",
+  "risk_medium": "मध्यम",
+  "risk_high": "जास्त",
+  "ann_vol": "अस्थिरता",
+  "max_drawdown": "कमाल घसरण",
+  "disclaimer": "हे फक्त शैक्षणिक साधन आहे, आर्थिक सल्ला नाही. मागील कामगिरी भविष्यातील निकालांची हमी देत नाही."
+ }
+}
