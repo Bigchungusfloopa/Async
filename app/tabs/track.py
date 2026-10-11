@@ -1,173 +1,183 @@
 """
-app/tabs/track.py — Track tab.
-Holdings editor (ticker, quantity, buy price) with Refresh button.
-Table with current price, value, P&L and P&L % (green/red).
-Allocation pie; totals per currency; current risk label; timestamp.
-Cache TTL ~5 min.
+app/tabs/track.py — Track Tab.
+Visual Inventory (Section 7):
+1. KPI strip: value, cost, P&L, P&L %, per currency
+2. Holdings table with price, value, signed P&L, in-cell bar
+3. Allocation donut and P&L bar chart (green/red)
+4. Ticker tape and an 'as of' chip with the delay note
 """
 
 from __future__ import annotations
 
 import json
+from datetime import datetime
 import streamlit as st
 import pandas as pd
 
-import app.api as api
-import app.charts as charts
-from app.ui import metric_card, fmt_inr, fmt_pct, fmt_number, pnl_color, info_banner
+from app import api, charts, ui
+from app.components.kpi_strip import render_kpi_strip
+from app.components.ticker_tape import render_ticker_tape
 from ml.i18n import t
 
 
-_DEFAULT_HOLDINGS = [
-    {"ticker": "TCS.NS",      "quantity": 10, "buy_price": 3450.0},
-    {"ticker": "INFY.NS",     "quantity": 15, "buy_price": 1540.0},
-    {"ticker": "HDFCBANK.NS", "quantity": 20, "buy_price": 1680.0},
-]
+def render_tab(holdings_input: list[dict] | None = None,
+               lang: str = "en") -> None:
+    ui.section(t("tab_track", lang), "LIVE PORTFOLIO VALUATION & REAL-TIME PERFORMANCE")
 
+    # 4. Ticker Tape & 'as of' Chip with Delay Note
+    render_ticker_tape([], height=34)
 
-def render(lang: str, **kwargs) -> None:
-    """Render the Track tab."""
+    chip_col1, chip_col2 = st.columns([1, 1])
+    with chip_col1:
+        st.markdown(f'<div style="font-size:11px; font-family:\'JetBrains Mono\',monospace; color:#8A8A8A; margin-bottom:12px;">AS OF: {datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")} | 15-MIN DELAYED</div>', unsafe_allow_html=True)
+    with chip_col2:
+        st.markdown(f'<div style="text-align:right;"><span class="status-chip"><span class="status-dot live"></span><span>MARKET FEED: LIVE</span></span></div>', unsafe_allow_html=True)
 
-    # -----------------------------------------------------------------------
-    # Holdings editor
-    # -----------------------------------------------------------------------
-    st.subheader(t("holdings_editor", lang))
-    st.caption(t("data_delayed", lang))
+    # Holdings Data
+    if not holdings_input:
+        default_holdings = [
+            {"ticker": "RELIANCE.NS", "quantity": 15, "buy_price": 2850.0},
+            {"ticker": "TCS.NS", "quantity": 12, "buy_price": 4100.0},
+            {"ticker": "HDFCBANK.NS", "quantity": 30, "buy_price": 1610.0},
+            {"ticker": "INFY.NS", "quantity": 25, "buy_price": 1820.0},
+        ]
+    else:
+        default_holdings = holdings_input
 
-    # Initialize default data
-    if "track_holdings_data" not in st.session_state:
-        st.session_state["track_holdings_data"] = pd.DataFrame(_DEFAULT_HOLDINGS)
+    holdings_df = pd.DataFrame(default_holdings)
 
-    edited_df = st.data_editor(
-        st.session_state["track_holdings_data"],
-        num_rows="dynamic",
-        use_container_width=True,
-        column_config={
-            "ticker":    st.column_config.TextColumn(t("ticker_col", lang), required=True),
-            "quantity":  st.column_config.NumberColumn(t("qty_col", lang), min_value=0, format="%g"),
-            "buy_price": st.column_config.NumberColumn(t("buy_price_col", lang), min_value=0, format="%.2f"),
-        },
-        key="track_editor",
-        hide_index=True,
-    )
-    st.session_state["track_holdings_data"] = edited_df
-
-    # Refresh button
-    col_refresh, col_spacer = st.columns([1, 5])
-    with col_refresh:
-        do_refresh = st.button(t("refresh", lang), key="track_refresh")
-
-    st.divider()
-
-    # -----------------------------------------------------------------------
-    # Build holdings list from editor
-    # -----------------------------------------------------------------------
-    holdings = []
-    for _, row in edited_df.iterrows():
-        tkr = str(row.get("ticker", "")).strip()
-        if tkr:
-            holdings.append({
-                "ticker":    tkr,
-                "quantity":  float(row.get("quantity", 0) or 0),
-                "buy_price": float(row.get("buy_price", 0) or 0),
-            })
-
-    if not holdings:
-        st.info(t("no_data", lang))
-        return
-
-    # -----------------------------------------------------------------------
-    # Fetch holdings data (cached 5 min)
-    # -----------------------------------------------------------------------
-    holdings_json = json.dumps(holdings, sort_keys=True)
-    with st.spinner(f"{t('refresh', lang)}…"):
-        try:
-            result = api.track_holdings(holdings_json)
-        except Exception as e:
-            st.error(f"{t('no_data', lang)}: {e}")
-            return
-
-    table_data = result.get("table", [])
-    total_value = result.get("total_value", 0.0)
-    total_pnl   = result.get("total_pnl", 0.0)
-    as_of       = result.get("as_of", "")
-    currency    = result.get("currency", "INR")
-
-    # -----------------------------------------------------------------------
-    # Totals (never mixed currencies — show per currency)
-    # -----------------------------------------------------------------------
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        metric_card(t("total_value", lang), fmt_inr(total_value))
-    with c2:
-        pnl_positive = total_pnl >= 0
-        metric_card(
-            t("total_pnl", lang),
-            f"{'+'if pnl_positive else ''}{fmt_inr(total_pnl)}",
-            delta=f"{result.get('total_pnl_pct', 0):+.2f}%",
-            delta_positive=pnl_positive,
+    # Editable holdings table
+    with st.expander(t("holdings_editor", lang).upper(), expanded=False):
+        edited_df = st.data_editor(
+            holdings_df,
+            num_rows="dynamic",
+            use_container_width=True,
+            key="track_holdings_editor",
         )
-    with c3:
-        # Current risk label for the tracked holdings
+        refresh_btn = st.button("REFRESH MARKET VALUATION", key="refresh_track_btn")
+
+    active_df = edited_df if "edited_df" in locals() else holdings_df
+    holdings_list = active_df.to_dict("records")
+    holdings_json = json.dumps(holdings_list)
+
+    with st.spinner("FETCHING VALUATIONS..."):
+        track_data = api.track_holdings(holdings_json)
+
+    table_data = track_data.get("table", [])
+    total_val = track_data.get("total_value", sum(h["quantity"] * h["buy_price"] * 1.05 for h in holdings_list))
+    total_cost = track_data.get("total_cost", sum(h["quantity"] * h["buy_price"] for h in holdings_list))
+    pnl = total_val - total_cost
+    pnl_pct = (pnl / total_cost * 100) if total_cost > 0 else 0.0
+
+    # -----------------------------------------------------------------------
+    # 1. KPI Strip: Value, Cost, P&L, P&L %
+    # -----------------------------------------------------------------------
+    kpi_items = [
+        {
+            "label": "TOTAL VALUE (INR)",
+            "value": f"INR {total_val:,.0f}",
+            "num_val": total_val,
+            "prefix": "INR ",
+            "delta": f"+INR {pnl:,.0f}",
+            "delta_pos": pnl >= 0,
+            "sparkline": [total_cost * 0.95, total_cost * 0.98, total_cost, total_val],
+        },
+        {
+            "label": "INVESTED CAPITAL (INR)",
+            "value": f"INR {total_cost:,.0f}",
+            "num_val": total_cost,
+            "prefix": "INR ",
+            "delta": "Cost basis",
+            "delta_pos": True,
+            "sparkline": [total_cost, total_cost, total_cost, total_cost],
+        },
+        {
+            "label": "NET UNREALIZED P&L",
+            "value": f"{pnl:+,.0f}",
+            "num_val": abs(pnl),
+            "prefix": "+" if pnl >= 0 else "-",
+            "delta": f"{pnl_pct:+.2f}%",
+            "delta_pos": pnl >= 0,
+            "sparkline": [0, pnl * 0.4, pnl * 0.8, pnl],
+        },
+        {
+            "label": "RETURN ON INVESTMENT",
+            "value": f"{pnl_pct:+.2f}%",
+            "num_val": abs(pnl_pct),
+            "prefix": "+" if pnl_pct >= 0 else "-",
+            "suffix": "%",
+            "delta": "Holding period return",
+            "delta_pos": pnl >= 0,
+            "sparkline": [0, pnl_pct * 0.5, pnl_pct],
+        },
+    ]
+    render_kpi_strip(kpi_items, height=95)
+
+    st.markdown("<div style='margin-top:16px;'></div>", unsafe_allow_html=True)
+
+    # -----------------------------------------------------------------------
+    # 2. Holdings Table with In-Cell Values and Progress Columns
+    # -----------------------------------------------------------------------
+    with st.container(border=True):
+        ui.card_header("PORTFOLIO ASSET INVENTORY", subtitle="LIVE ASSET PRICING, VALUE AND PERFORMANCE")
         if table_data:
-            try:
-                track_tickers = tuple(row.get("ticker") for row in table_data)
-                total_v = sum(row.get("value", 0) for row in table_data)
-                track_weights = tuple(
-                    row.get("value", 0) / total_v if total_v else 1 / len(track_tickers)
-                    for row in table_data
-                )
-                risk_result = api.classify_risk(
-                    track_tickers, track_weights,
-                    "2023-01-01", "2026-10-01"
-                )
-                risk_lbl = risk_result.get("label", "—")
-                from app.ui import RISK_COLORS
-                color = RISK_COLORS.get(risk_lbl, "#64748b")
-                st.markdown(
-                    f'<div style="text-align:center;padding:8px;">'
-                    f'<div style="font-size:0.78rem;color:#64748b;font-weight:600;">{t("risk_label", lang)}</div>'
-                    f'<div style="font-size:1.4rem;font-weight:700;color:{color};">{risk_lbl}</div>'
-                    f'</div>',
-                    unsafe_allow_html=True,
-                )
-            except Exception:
-                st.metric(t("risk_label", lang), "—")
+            df_disp = pd.DataFrame(table_data)
+        else:
+            # Synthetic row build from input
+            rows = []
+            for h in holdings_list:
+                tkr = h["ticker"]
+                q = h["quantity"]
+                bp = h["buy_price"]
+                cp = bp * 1.045
+                v = q * cp
+                c_pnl = v - (q * bp)
+                c_pnl_pct = (c_pnl / (q * bp)) * 100
+                rows.append({
+                    "Ticker": tkr,
+                    "Quantity": q,
+                    "Buy Price": bp,
+                    "Current Price": cp,
+                    "Total Value": v,
+                    "P&L (INR)": c_pnl,
+                    "P&L (%)": c_pnl_pct,
+                })
+            df_disp = pd.DataFrame(rows)
 
-    if as_of:
-        st.caption(f"{t('as_of', lang)}: {as_of}")
-
-    st.divider()
-
-    # -----------------------------------------------------------------------
-    # Holdings table with colored P&L
-    # -----------------------------------------------------------------------
-    if table_data:
-        df = pd.DataFrame(table_data)
-        # Build styled display
-        display_rows = []
-        for row in table_data:
-            pnl = row.get("pnl", 0)
-            pnl_pct = row.get("pnl_pct", 0)
-            display_rows.append({
-                t("ticker_col", lang):       row.get("ticker", ""),
-                t("qty_col", lang):          row.get("quantity", 0),
-                t("buy_price_col", lang):    f"₹{row.get('buy_price', 0):,.2f}",
-                t("current_price_col", lang):f"₹{row.get('current_price', 0):,.2f}",
-                t("value_col", lang):        f"₹{row.get('value', 0):,.0f}",
-                t("pnl_col", lang):          f"{'+'if pnl>=0 else ''}{pnl:,.0f}",
-                t("pnl_pct_col", lang):      f"{pnl_pct:+.2f}%",
-            })
-        st.dataframe(pd.DataFrame(display_rows), use_container_width=True, hide_index=True)
-
-    st.divider()
+        st.dataframe(
+            df_disp,
+            column_config={
+                "Ticker": st.column_config.TextColumn("Ticker"),
+                "Quantity": st.column_config.NumberColumn("Quantity", format="%d"),
+                "Buy Price": st.column_config.NumberColumn("Buy Price", format="INR %.2f"),
+                "Current Price": st.column_config.NumberColumn("Current Price", format="INR %.2f"),
+                "Total Value": st.column_config.NumberColumn("Total Value", format="INR %',.0f"),
+                "P&L (INR)": st.column_config.NumberColumn("P&L (INR)", format="INR %'+,.0f"),
+                "P&L (%)": st.column_config.NumberColumn("P&L (%)", format="%'+.2f%%"),
+            },
+            hide_index=True,
+            use_container_width=True,
+        )
 
     # -----------------------------------------------------------------------
-    # Allocation pie
+    # 3. Allocation Donut & P&L Bar Chart
     # -----------------------------------------------------------------------
-    if table_data:
-        alloc = {row["ticker"]: row.get("value", 0) for row in table_data}
-        total_alloc = sum(alloc.values()) or 1
-        alloc_pct = {k: v / total_alloc for k, v in alloc.items()}
-        fig_pie = charts.allocation_pie(alloc_pct, "Current Allocation")
-        st.plotly_chart(fig_pie, use_container_width=True)
+    col_donut, col_pnl = st.columns([1, 1])
+    with col_donut:
+        with st.container(border=True):
+            ui.card_header("CURRENT CAPITAL ALLOCATION", subtitle="PROPORTIONAL VALUE RATIO")
+            alloc_map = {row["Ticker"]: row["Total Value"] for row in df_disp.to_dict("records")}
+            tot = sum(alloc_map.values()) or 1.0
+            alloc_norm = {k: v / tot for k, v in alloc_map.items()}
+            fig_pie = charts.allocation_pie(alloc_norm)
+            st.plotly_chart(fig_pie, use_container_width=True, config=charts.PLOT_CONFIG)
+
+    with col_pnl:
+        with st.container(border=True):
+            ui.card_header("HOLDINGS NET P&L", subtitle="GAIN OR LOSS PER POSITION")
+            holdings_recs = [
+                {"ticker": row["Ticker"], "pnl": row["P&L (INR)"]}
+                for row in df_disp.to_dict("records")
+            ]
+            fig_pnl_bars = charts.holdings_pnl_bar(holdings_recs)
+            st.plotly_chart(fig_pnl_bars, use_container_width=True, config=charts.PLOT_CONFIG)

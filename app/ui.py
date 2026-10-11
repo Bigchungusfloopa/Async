@@ -1,192 +1,316 @@
 """
-app/ui.py — UI helper utilities: risk badges, metric cards, formatting, CSS.
+app/ui.py — Black, Minimal, Animated Trading Terminal UI Components.
+HARD RULES:
+- No gradients anywhere.
+- No shadows, glows, blur, glassmorphism, or 3D.
+- No emojis anywhere.
+- Tabular monospace numbers.
 """
 
 from __future__ import annotations
 
+import re
+from pathlib import Path
+from typing import Any
 import streamlit as st
 from ml.i18n import t
 
+# ---------------------------------------------------------------------------
+# Strict Design Tokens & Colors (No gradients, no soft shadows)
+# ---------------------------------------------------------------------------
+TOKENS = {
+    "bg": "#000000",
+    "surface": "#0A0A0A",
+    "surface_2": "#111111",
+    "border": "#1F1F1F",
+    "border_strong": "#2E2E2E",
+    "text": "#F5F5F5",
+    "text_muted": "#8A8A8A",
+    "text_dim": "#5C5C5C",
+    "pos": "#22C55E",
+    "neg": "#EF4444",
+    "warn": "#F59E0B",
+    "info": "#3B82F6",
+}
 
-# ---------------------------------------------------------------------------
-# Color palette (colorblind-safe)
-# ---------------------------------------------------------------------------
 RISK_COLORS = {
-    "Low":    "#2ECC71",   # green
-    "Medium": "#F39C12",   # amber
-    "High":   "#E74C3C",   # red
+    "Low": "#22C55E",
+    "Medium": "#F59E0B",
+    "High": "#EF4444",
 }
 
 STRATEGY_COLORS = {
-    "Original":    "#4F8EF7",
-    "Recommended": "#2ECC71",
-    "Equal Weight": "#F39C12",
-    "Benchmark":   "#9B59B6",
+    "Original": "#F5F5F5",
+    "Recommended": "#3B82F6",
+    "Equal Weight": "#F59E0B",
+    "Benchmark": "#6B7280",
 }
 
 SENTIMENT_COLORS = {
-    "Positive": "#2ECC71",
-    "Neutral":  "#95A5A6",
-    "Negative": "#E74C3C",
+    "Positive": "#22C55E",
+    "Neutral": "#8A8A8A",
+    "Negative": "#EF4444",
 }
 
+# Regex to strip any emoji codepoints
+_EMOJI_PATTERN = re.compile(
+    r"[\U00010000-\U0010FFFF\u2600-\u27BF\uFE0F\u2300-\u23FF\u2B50-\u2B55\u200D\u20E3]"
+)
+
+
+def strip_emojis(text: Any) -> str:
+    """Strip emojis from any external or internal text."""
+    if not isinstance(text, str):
+        return str(text)
+    return _EMOJI_PATTERN.sub("", text).strip()
+
 
 # ---------------------------------------------------------------------------
-# CSS injection
+# CSS Injection
 # ---------------------------------------------------------------------------
+@st.cache_data
+def _load_style_css() -> str:
+    """Read app/style.css from disk."""
+    css_path = Path(__file__).parent / "style.css"
+    if css_path.exists():
+        return css_path.read_text(encoding="utf-8")
+    return ""
+
+
 def inject_css() -> None:
-    """Inject global CSS for the app."""
-    st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
-html, body, [class*="css"] {
-    font-family: 'Inter', sans-serif;
-}
-
-/* Metric cards */
-.metric-card {
-    background: linear-gradient(135deg, #ffffff 0%, #f0f4ff 100%);
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 16px 20px;
-    text-align: center;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-.metric-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(0,0,0,0.10);
-}
-.metric-label {
-    font-size: 0.78rem;
-    font-weight: 500;
-    color: #64748b;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-bottom: 6px;
-}
-.metric-value {
-    font-size: 1.6rem;
-    font-weight: 700;
-    color: #1a2035;
-    line-height: 1.2;
-}
-.metric-delta {
-    font-size: 0.82rem;
-    font-weight: 500;
-    margin-top: 4px;
-}
-.metric-positive { color: #2ECC71; }
-.metric-negative { color: #E74C3C; }
-.metric-neutral  { color: #64748b; }
-
-/* Risk badge */
-.risk-badge {
-    display: inline-block;
-    padding: 10px 28px;
-    border-radius: 50px;
-    font-size: 1.4rem;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    box-shadow: 0 4px 14px rgba(0,0,0,0.15);
-}
-.risk-low    { background: #d4f5e2; color: #166534; border: 2px solid #2ECC71; }
-.risk-medium { background: #fef3cd; color: #7c3d00; border: 2px solid #F39C12; }
-.risk-high   { background: #fde8e8; color: #7f1d1d; border: 2px solid #E74C3C; }
-
-/* Tab styling */
-div[data-testid="stTabs"] button {
-    font-weight: 600;
-    font-size: 0.88rem;
-}
-
-/* Sidebar */
-section[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #f8fafb 0%, #eef2f7 100%);
-}
-
-/* Footer */
-.app-footer {
-    text-align: center;
-    color: #94a3b8;
-    font-size: 0.75rem;
-    padding: 16px;
-    border-top: 1px solid #e2e8f0;
-    margin-top: 32px;
-}
-
-/* Sentiment chip */
-.sentiment-chip {
-    display: inline-block;
-    padding: 4px 14px;
-    border-radius: 50px;
-    font-size: 0.82rem;
-    font-weight: 600;
-}
-
-/* Source badge */
-.source-badge {
-    display: inline-block;
-    padding: 2px 10px;
-    border-radius: 20px;
-    font-size: 0.72rem;
-    font-weight: 500;
-    background: #e2e8f0;
-    color: #475569;
-}
-
-/* Info banner */
-.info-banner {
-    background: #eff6ff;
-    border-left: 4px solid #4F8EF7;
-    padding: 10px 16px;
-    border-radius: 0 8px 8px 0;
-    font-size: 0.86rem;
-    margin: 8px 0;
-}
-</style>
-""", unsafe_allow_html=True)
+    """Inject the global black minimal design stylesheet."""
+    css = _load_style_css()
+    if css:
+        st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
 
 
 # ---------------------------------------------------------------------------
-# Risk badge
+# Animation State Tracking (Prevent replay on widget interaction reruns)
 # ---------------------------------------------------------------------------
-def risk_badge(label: str, lang: str = "en") -> None:
-    """Render a large risk level badge."""
-    cls = f"risk-{label.lower()}"
-    display_label = t(label, lang)
+def is_first_view(tab_name: str) -> bool:
+    """Check if a tab is being viewed for the first time in this session."""
+    if "_seen_tabs" not in st.session_state:
+        st.session_state["_seen_tabs"] = set()
+    first = tab_name not in st.session_state["_seen_tabs"]
+    st.session_state["_seen_tabs"].add(tab_name)
+    return first
+
+
+def track_value_change(key: str, new_val: Any) -> str:
+    """Return flash-pos or flash-neg CSS class if value changed, else empty string."""
+    prev_key = f"_prev_val_{key}"
+    prev = st.session_state.get(prev_key)
+    st.session_state[prev_key] = new_val
+    if prev is not None and prev != new_val:
+        try:
+            if float(new_val) > float(prev):
+                return "flash-pos"
+            elif float(new_val) < float(prev):
+                return "flash-neg"
+        except (ValueError, TypeError):
+            return "flash-pos"
+    return ""
+
+
+# ---------------------------------------------------------------------------
+# Layout Components
+# ---------------------------------------------------------------------------
+def top_bar(source: str = "LIVE", llm_mode: str = "ONLINE", lang: str = "en") -> None:
+    """Render top bar with wordmark and status chips (no logo image, no emojis)."""
+    src_upper = source.upper()
+    llm_upper = llm_mode.upper()
+    lang_upper = lang.upper()
+
+    src_class = "live" if src_upper == "LIVE" else ("cache" if src_upper == "CACHE" else "fallback")
+    llm_class = "online" if llm_upper == "ONLINE" else "offline"
+
     st.markdown(
-        f'<div style="text-align:center; padding:16px 0;">'
-        f'<span class="risk-badge {cls}">{display_label}</span>'
-        f'</div>',
+        f"""
+        <div class="top-bar">
+            <div class="top-wordmark">INVESTMENT RISK TERMINAL</div>
+            <div class="status-chips-group">
+                <span class="status-chip">
+                    <span class="status-dot {src_class}"></span>
+                    <span>SOURCE: {src_upper}</span>
+                </span>
+                <span class="status-chip">
+                    <span class="status-dot {llm_class}"></span>
+                    <span>LLM: {llm_upper}</span>
+                </span>
+                <span class="status-chip">
+                    <span class="status-dot"></span>
+                    <span>LANG: {lang_upper}</span>
+                </span>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def section(title: str, subtitle: str | None = None) -> None:
+    """Page-level heading with a clean 1px hairline rule."""
+    sub_html = f'<div class="section-subtitle">{strip_emojis(subtitle)}</div>' if subtitle else ""
+    st.markdown(
+        f"""
+        <div style="margin-top: 14px; margin-bottom: 12px;">
+            <div class="section-title">{strip_emojis(title)}</div>
+            {sub_html}
+            <div class="section-divider"></div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def card_header(title: str, subtitle: str | None = None, right: str | None = None) -> None:
+    """Header row inside a card container."""
+    right_html = f'<div class="status-chip">{strip_emojis(right)}</div>' if right else ""
+    sub_html = f'<div class="card-subtitle">{strip_emojis(subtitle)}</div>' if subtitle else ""
+    st.markdown(
+        f"""
+        <div class="card-title-row">
+            <div>
+                <div class="card-title">{strip_emojis(title).upper()}</div>
+                {sub_html}
+            </div>
+            {right_html}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def chip(text: str, status: str = "neutral") -> str:
+    """Return HTML for a status chip with 1px border and flat status dot."""
+    status_map = {
+        "live": "live",
+        "online": "online",
+        "pos": "pos",
+        "warn": "warn",
+        "neg": "neg",
+        "offline": "offline",
+        "cache": "cache",
+        "fallback": "fallback",
+    }
+    cls = status_map.get(status.lower(), "")
+    return f"""<span class="status-chip"><span class="status-dot {cls}"></span><span>{strip_emojis(text).upper()}</span></span>"""
+
+
+def delta(value: float | str, is_pct: bool = True) -> str:
+    """Return HTML for a signed delta with small CSS triangle glyph (no emojis)."""
+    try:
+        val_f = float(str(value).replace("%", "").replace("+", "").strip())
+        pos = val_f >= 0
+        sign = "+" if pos else ""
+        glyph = "▲" if pos else "▼"
+        cls = "pos" if pos else "neg"
+        text = f"{sign}{val_f:.2f}%" if is_pct else f"{sign}{val_f:,.2f}"
+    except (ValueError, TypeError):
+        pos = True
+        glyph = ""
+        cls = "pos"
+        text = str(value)
+
+    return f"""<span class="delta-val {cls}"><span class="delta-glyph">{glyph}</span> {text}</span>"""
+
+
+def empty_state(text: str) -> None:
+    """Render empty state with a thin-line abstract chart and mono prompt."""
+    st.markdown(
+        f"""
+        <div class="empty-state-box">
+            <svg width="120" height="40" viewBox="0 0 120 40" fill="none">
+                <line x1="0" y1="35" x2="120" y2="35" stroke="#1F1F1F" stroke-width="1"/>
+                <polyline points="5,30 25,25 45,28 65,15 85,20 105,8 115,12" stroke="#2E2E2E" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <div class="empty-state-text">{strip_emojis(text).upper()}</div>
+        </div>
+        """,
         unsafe_allow_html=True,
     )
 
 
 # ---------------------------------------------------------------------------
-# Metric card (HTML-based, prettier than st.metric)
+# Backward-compatible Helpers (Refactored to Black Minimal Style)
 # ---------------------------------------------------------------------------
-def metric_card(label: str, value: str, delta: str | None = None,
+def risk_badge(label: str, lang: str = "en") -> None:
+    """Render a flat hairline risk badge (no gradient, no shadow, no emoji)."""
+    norm = label.capitalize()
+    color = RISK_COLORS.get(norm, "#F59E0B")
+    display_label = strip_emojis(t(norm, lang)).upper()
+    st.markdown(
+        f"""
+        <div style="display:inline-flex; align-items:center; gap:8px; border:1px solid {color}; border-radius:4px; padding:4px 12px; background:#0A0A0A;">
+            <span style="width:6px; height:6px; border-radius:50%; background:{color};"></span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:600; color:{color}; letter-spacing:0.06em;">{display_label}</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def metric_card(label: str, value: str, delta_val: str | None = None,
                 delta_positive: bool | None = None) -> None:
-    """Render a styled metric card."""
+    """Render a flat card with uppercase label, big tabular mono value, and delta."""
     delta_html = ""
-    if delta is not None:
-        if delta_positive is True:
-            cls = "metric-positive"
-        elif delta_positive is False:
-            cls = "metric-negative"
-        else:
-            cls = "metric-neutral"
-        delta_html = f'<div class="metric-delta {cls}">{delta}</div>'
+    if delta_val is not None:
+        cls = "pos" if delta_positive is not False else "neg"
+        glyph = "▲" if delta_positive is not False else "▼"
+        delta_html = f"""<div class="delta-val {cls}" style="margin-top:6px;"><span class="delta-glyph">{glyph}</span> {delta_val}</div>"""
 
     st.markdown(
-        f'<div class="metric-card">'
-        f'<div class="metric-label">{label}</div>'
-        f'<div class="metric-value">{value}</div>'
-        f'{delta_html}'
-        f'</div>',
+        f"""
+        <div style="background:#0A0A0A; border:1px solid #1F1F1F; border-radius:6px; padding:14px 16px;">
+            <div style="font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:#8A8A8A;">{strip_emojis(label)}</div>
+            <div style="font-family:'JetBrains Mono',monospace; font-variant-numeric:tabular-nums; font-size:24px; font-weight:600; color:#F5F5F5; line-height:1.2; margin-top:4px;">{value}</div>
+            {delta_html}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def sentiment_chip(sentiment: str) -> None:
+    """Render flat sentiment chip."""
+    color = SENTIMENT_COLORS.get(sentiment, "#8A8A8A")
+    st.markdown(
+        f"""
+        <span style="display:inline-flex; align-items:center; gap:6px; border:1px solid {color}; border-radius:4px; padding:2px 8px; font-family:'JetBrains Mono',monospace; font-size:11px; text-transform:uppercase; color:{color}; background:#0A0A0A;">
+            <span style="width:5px; height:5px; border-radius:50%; background:{color};"></span>
+            <span>{sentiment.upper()}</span>
+        </span>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def source_badge(source: str, lang: str = "en") -> None:
+    """Render small 1px border source badge."""
+    label_map = {
+        "live": t("source_live", lang),
+        "cache": t("source_cache", lang),
+        "offline": t("source_offline", lang),
+    }
+    label = label_map.get(source.lower(), source)
+    st.markdown(
+        f"""<span class="status-chip"><span>{strip_emojis(label).upper()}</span></span>""",
+        unsafe_allow_html=True,
+    )
+
+
+def info_banner(text: str) -> None:
+    """Render flat info banner with 2px left border in info blue."""
+    st.markdown(
+        f"""<div data-testid="stAlert"><p>{strip_emojis(text)}</p></div>""",
+        unsafe_allow_html=True,
+    )
+
+
+def footer(lang: str = "en") -> None:
+    """Render the app footer disclaimer."""
+    st.markdown(
+        f"""<div class="footer-disclaimer">{strip_emojis(t("footer", lang))}</div>""",
         unsafe_allow_html=True,
     )
 
@@ -195,79 +319,24 @@ def metric_card(label: str, value: str, delta: str | None = None,
 # Formatting helpers
 # ---------------------------------------------------------------------------
 def fmt_pct(value: float, decimals: int = 1) -> str:
-    """Format a decimal fraction as percentage string."""
+    """Format decimal fraction as percentage string."""
     return f"{value * 100:.{decimals}f}%"
 
 
 def fmt_inr(value: float) -> str:
-    """Format value in Indian Rupee notation."""
+    """Format value in INR (no emoji, clean currency)."""
     if abs(value) >= 1e7:
-        return f"₹{value/1e7:.2f} Cr"
+        return f"INR {value/1e7:.2f} Cr"
     elif abs(value) >= 1e5:
-        return f"₹{value/1e5:.2f} L"
-    return f"₹{value:,.0f}"
+        return f"INR {value/1e5:.2f} L"
+    return f"INR {value:,.0f}"
 
 
 def fmt_number(value: float, decimals: int = 2) -> str:
-    """Format a plain number."""
+    """Format plain number."""
     return f"{value:.{decimals}f}"
 
 
 def pnl_color(value: float) -> str:
-    """Return HTML color string for P&L value."""
-    return "#2ECC71" if value >= 0 else "#E74C3C"
-
-
-def sentiment_chip(sentiment: str) -> None:
-    """Render a sentiment chip."""
-    color = SENTIMENT_COLORS.get(sentiment, "#95A5A6")
-    bg = color + "22"
-    st.markdown(
-        f'<span class="sentiment-chip" style="background:{bg};color:{color};border:1px solid {color};">'
-        f'{sentiment}</span>',
-        unsafe_allow_html=True,
-    )
-
-
-def source_badge(source: str, lang: str = "en") -> None:
-    """Render a small source badge."""
-    label_map = {"live": t("source_live", lang), "cache": t("source_cache", lang),
-                 "offline": t("source_offline", lang)}
-    label = label_map.get(source.lower(), source)
-    st.markdown(f'<span class="source-badge">{label}</span>', unsafe_allow_html=True)
-
-
-def footer(lang: str = "en") -> None:
-    """Render the app footer with disclaimer."""
-    st.markdown(
-        f'<div class="app-footer">{t("footer", lang)}</div>',
-        unsafe_allow_html=True,
-    )
-
-
-def info_banner(text: str) -> None:
-    """Render a styled info banner."""
-    st.markdown(f'<div class="info-banner">{text}</div>', unsafe_allow_html=True)
-
-
-# ---------------------------------------------------------------------------
-# Probability bar for risk classification
-# ---------------------------------------------------------------------------
-def prob_bar(probs: dict[str, float], lang: str = "en") -> None:
-    """Render colored probability bars for Low/Medium/High."""
-    cols = st.columns(3)
-    for i, (label, color) in enumerate(RISK_COLORS.items()):
-        val = probs.get(label, 0.0)
-        with cols[i]:
-            st.markdown(
-                f'<div style="text-align:center;">'
-                f'<div style="font-size:0.78rem;font-weight:600;color:#64748b;margin-bottom:4px;">'
-                f'{t(label, lang)}</div>'
-                f'<div style="background:#f1f5f9;border-radius:8px;overflow:hidden;height:8px;">'
-                f'<div style="background:{color};width:{val*100:.0f}%;height:100%;border-radius:8px;"></div>'
-                f'</div>'
-                f'<div style="font-size:1.1rem;font-weight:700;color:{color};margin-top:4px;">'
-                f'{val*100:.0f}%</div>'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
+    """Return pos/neg color string."""
+    return "#22C55E" if value >= 0 else "#EF4444"

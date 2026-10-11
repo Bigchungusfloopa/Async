@@ -213,7 +213,7 @@ def export_button(lang: str, tickers: list, weights: dict, risk_label: str,
             )
         if pdf_bytes:
             st.download_button(
-                label=f"⬇️ Download {session_name}.pdf",
+                label=f"DOWNLOAD {session_name.upper()}.PDF",
                 data=pdf_bytes,
                 file_name=f"{session_name.replace(' ', '_')}.pdf",
                 mime="application/pdf",

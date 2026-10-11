@@ -1,3 +1,5 @@
+import re
+import re
 """
 ml/i18n.py — Internationalization labels for English, Hindi, and Marathi.
 P3 calls t(key, lang) everywhere instead of hardcoding strings.
@@ -28,22 +30,22 @@ _LABELS = {
         "advanced": "Advanced",
         "risk_free_rate": "Risk-Free Rate (%)",
         "session_name": "Portfolio Name",
-        "save_portfolio": "💾 Save Portfolio",
-        "load_portfolio": "📂 Load Portfolio",
-        "export_pdf": "📄 Export PDF",
-        "record_audio": "🎤 Record Audio",
+        "save_portfolio": "Save Portfolio",
+        "load_portfolio": "Load Portfolio",
+        "export_pdf": "Export PDF",
+        "record_audio": "Record Audio",
         "fill_portfolio": "Fill Portfolio from Transcript",
         "transcript": "Transcript (editable)",
         "unresolved": "Unresolved tickers",
 
         # Tabs
-        "tab_risk": "📊 Risk",
-        "tab_allocation": "⚖️ Allocation",
-        "tab_simulate": "📈 Simulate",
-        "tab_track": "🔍 Track",
-        "tab_compare": "🔁 Compare",
-        "tab_scenarios": "🌩 Scenarios",
-        "tab_news": "📰 Market Intel",
+        "tab_risk": "Risk",
+        "tab_allocation": "Allocation",
+        "tab_simulate": "Simulate",
+        "tab_track": "Track",
+        "tab_compare": "Compare",
+        "tab_scenarios": "Scenarios",
+        "tab_news": "Market Intel",
 
         # Risk tab
         "risk_label": "Risk Label",
@@ -98,7 +100,7 @@ _LABELS = {
         "value_col": "Value",
         "pnl_col": "P&L",
         "pnl_pct_col": "P&L %",
-        "refresh": "🔄 Refresh",
+        "refresh": "Refresh",
         "as_of": "As of",
         "data_delayed": "Market data may be delayed by 15-20 minutes.",
         "total_value": "Total Value",
@@ -123,7 +125,7 @@ _LABELS = {
         "expected_shortfall": "Expected Shortfall",
 
         # News tab
-        "news_disclaimer": "⚠️ Supplementary AI insight. It does not change the ML risk score.",
+        "news_disclaimer": "Supplementary AI insight. It does not change the ML risk score.",
         "generate_insight": "Generate Insight",
         "sentiment": "Sentiment",
         "sector_trends": "Sector Trends",
@@ -144,14 +146,14 @@ _LABELS = {
 
         # Errors / warnings
         "invalid_ticker": "Invalid ticker: {}. Please check and try again.",
-        "mixed_currencies": "⚠️ Mixed currencies detected. Comparisons shown in percentage terms.",
-        "using_fallback": "ℹ️ Using saved/cached data (live fetch failed).",
-        "llm_offline": "ℹ️ LLM result from cache (offline mode or quota exceeded).",
+        "mixed_currencies": "Mixed currencies detected. Comparisons shown in percentage terms.",
+        "using_fallback": "ℹ Using saved/cached data (live fetch failed).",
+        "llm_offline": "ℹ LLM result from cache (offline mode or quota exceeded).",
         "no_data": "No data available. Please check your inputs.",
         "retry": "Please retry or check your internet connection.",
-        "short_history": "⚠️ {} has less than 1 year of history. Results may be less reliable.",
-        "single_asset": "ℹ️ Single-asset portfolio detected. Diversification metrics not applicable.",
-        "dropped_tickers": "⚠️ Some tickers were dropped due to insufficient data: {}",
+        "short_history": "{} has less than 1 year of history. Results may be less reliable.",
+        "single_asset": "ℹ Single-asset portfolio detected. Diversification metrics not applicable.",
+        "dropped_tickers": "Some tickers were dropped due to insufficient data: {}",
     },
 
     "hi": {
@@ -178,22 +180,22 @@ _LABELS = {
         "advanced": "उन्नत",
         "risk_free_rate": "जोखिम मुक्त दर (%)",
         "session_name": "पोर्टफोलियो नाम",
-        "save_portfolio": "💾 पोर्टफोलियो सहेजें",
-        "load_portfolio": "📂 पोर्टफोलियो लोड करें",
-        "export_pdf": "📄 PDF निर्यात करें",
-        "record_audio": "🎤 ऑडियो रिकॉर्ड करें",
+        "save_portfolio": "पोर्टफोलियो सहेजें",
+        "load_portfolio": "पोर्टफोलियो लोड करें",
+        "export_pdf": "PDF निर्यात करें",
+        "record_audio": "ऑडियो रिकॉर्ड करें",
         "fill_portfolio": "ट्रांसक्रिप्ट से पोर्टफोलियो भरें",
         "transcript": "ट्रांसक्रिप्ट (संपादन योग्य)",
         "unresolved": "अज्ञात टिकर",
 
         # Tabs
-        "tab_risk": "📊 जोखिम",
-        "tab_allocation": "⚖️ आवंटन",
-        "tab_simulate": "📈 सिमुलेशन",
-        "tab_track": "🔍 ट्रैक",
-        "tab_compare": "🔁 तुलना",
-        "tab_scenarios": "🌩 परिदृश्य",
-        "tab_news": "📰 बाज़ार जानकारी",
+        "tab_risk": "जोखिम",
+        "tab_allocation": "आवंटन",
+        "tab_simulate": "सिमुलेशन",
+        "tab_track": "ट्रैक",
+        "tab_compare": "तुलना",
+        "tab_scenarios": "परिदृश्य",
+        "tab_news": "बाज़ार जानकारी",
 
         # Risk tab
         "risk_label": "जोखिम श्रेणी",
@@ -248,7 +250,7 @@ _LABELS = {
         "value_col": "मूल्य",
         "pnl_col": "P&L",
         "pnl_pct_col": "P&L %",
-        "refresh": "🔄 रिफ्रेश",
+        "refresh": "रिफ्रेश",
         "as_of": "इस समय तक",
         "data_delayed": "बाज़ार डेटा 15-20 मिनट देरी से हो सकता है।",
         "total_value": "कुल मूल्य",
@@ -273,7 +275,7 @@ _LABELS = {
         "expected_shortfall": "अपेक्षित कमी",
 
         # News tab
-        "news_disclaimer": "⚠️ सहायक AI अंतर्दृष्टि। यह ML जोखिम स्कोर नहीं बदलती।",
+        "news_disclaimer": "सहायक AI अंतर्दृष्टि। यह ML जोखिम स्कोर नहीं बदलती।",
         "generate_insight": "अंतर्दृष्टि उत्पन्न करें",
         "sentiment": "भावना",
         "sector_trends": "क्षेत्र रुझान",
@@ -294,14 +296,14 @@ _LABELS = {
 
         # Errors
         "invalid_ticker": "अमान्य टिकर: {}। कृपया जांचें और पुनः प्रयास करें।",
-        "mixed_currencies": "⚠️ मिश्रित मुद्राएं पाई गईं। तुलना प्रतिशत में दिखाई गई है।",
-        "using_fallback": "ℹ️ सहेजा गया डेटा उपयोग हो रहा है (लाइव फ़ेच विफल)।",
-        "llm_offline": "ℹ️ LLM परिणाम कैश से (ऑफलाइन मोड या कोटा समाप्त)।",
+        "mixed_currencies": "मिश्रित मुद्राएं पाई गईं। तुलना प्रतिशत में दिखाई गई है।",
+        "using_fallback": "ℹ सहेजा गया डेटा उपयोग हो रहा है (लाइव फ़ेच विफल)।",
+        "llm_offline": "ℹ LLM परिणाम कैश से (ऑफलाइन मोड या कोटा समाप्त)।",
         "no_data": "कोई डेटा उपलब्ध नहीं। कृपया अपने इनपुट जांचें।",
         "retry": "कृपया पुनः प्रयास करें या इंटरनेट कनेक्शन जांचें।",
-        "short_history": "⚠️ {} का 1 वर्ष से कम इतिहास है। परिणाम कम विश्वसनीय हो सकते हैं।",
-        "single_asset": "ℹ️ एकल-संपत्ति पोर्टफोलियो। विविधीकरण मेट्रिक्स लागू नहीं।",
-        "dropped_tickers": "⚠️ अपर्याप्त डेटा के कारण कुछ टिकर हटाए गए: {}",
+        "short_history": "{} का 1 वर्ष से कम इतिहास है। परिणाम कम विश्वसनीय हो सकते हैं।",
+        "single_asset": "ℹ एकल-संपत्ति पोर्टफोलियो। विविधीकरण मेट्रिक्स लागू नहीं।",
+        "dropped_tickers": "अपर्याप्त डेटा के कारण कुछ टिकर हटाए गए: {}",
     },
 
     "mr": {
@@ -328,22 +330,22 @@ _LABELS = {
         "advanced": "प्रगत",
         "risk_free_rate": "जोखीम-मुक्त दर (%)",
         "session_name": "पोर्टफोलिओ नाव",
-        "save_portfolio": "💾 पोर्टफोलिओ जतन करा",
-        "load_portfolio": "📂 पोर्टफोलिओ लोड करा",
-        "export_pdf": "📄 PDF निर्यात करा",
-        "record_audio": "🎤 ऑडिओ रेकॉर्ड करा",
+        "save_portfolio": "पोर्टफोलिओ जतन करा",
+        "load_portfolio": "पोर्टफोलिओ लोड करा",
+        "export_pdf": "PDF निर्यात करा",
+        "record_audio": "ऑडिओ रेकॉर्ड करा",
         "fill_portfolio": "ट्रान्सक्रिप्टमधून पोर्टफोलिओ भरा",
         "transcript": "ट्रान्सक्रिप्ट (संपादन करण्यायोग्य)",
         "unresolved": "अज्ञात टिकर",
 
         # Tabs
-        "tab_risk": "📊 जोखीम",
-        "tab_allocation": "⚖️ वाटप",
-        "tab_simulate": "📈 सिम्युलेशन",
-        "tab_track": "🔍 ट्रॅक",
-        "tab_compare": "🔁 तुलना",
-        "tab_scenarios": "🌩 परिस्थिती",
-        "tab_news": "📰 बाजार माहिती",
+        "tab_risk": "जोखीम",
+        "tab_allocation": "वाटप",
+        "tab_simulate": "सिम्युलेशन",
+        "tab_track": "ट्रॅक",
+        "tab_compare": "तुलना",
+        "tab_scenarios": "परिस्थिती",
+        "tab_news": "बाजार माहिती",
 
         # Risk tab
         "risk_label": "जोखीम श्रेणी",
@@ -398,7 +400,7 @@ _LABELS = {
         "value_col": "मूल्य",
         "pnl_col": "P&L",
         "pnl_pct_col": "P&L %",
-        "refresh": "🔄 रिफ्रेश",
+        "refresh": "रिफ्रेश",
         "as_of": "पर्यंत",
         "data_delayed": "बाजार डेटा 15-20 मिनिटे उशीरा असू शकतो।",
         "total_value": "एकूण मूल्य",
@@ -423,7 +425,7 @@ _LABELS = {
         "expected_shortfall": "अपेक्षित तूट",
 
         # News tab
-        "news_disclaimer": "⚠️ सहायक AI अंतर्दृष्टी। हे ML जोखीम स्कोर बदलत नाही।",
+        "news_disclaimer": "सहायक AI अंतर्दृष्टी। हे ML जोखीम स्कोर बदलत नाही।",
         "generate_insight": "अंतर्दृष्टी निर्माण करा",
         "sentiment": "भावना",
         "sector_trends": "क्षेत्र कल",
@@ -444,14 +446,14 @@ _LABELS = {
 
         # Errors
         "invalid_ticker": "अवैध टिकर: {}। कृपया तपासा आणि पुन्हा प्रयत्न करा।",
-        "mixed_currencies": "⚠️ मिश्रित चलने आढळली. तुलना टक्केवारीत दाखवली आहे।",
-        "using_fallback": "ℹ️ जतन केलेला डेटा वापरला जात आहे (लाइव्ह फेच अयशस्वी)।",
-        "llm_offline": "ℹ️ LLM निकाल कॅशमधून (ऑफलाइन मोड किंवा कोटा संपला)।",
+        "mixed_currencies": "मिश्रित चलने आढळली. तुलना टक्केवारीत दाखवली आहे।",
+        "using_fallback": "ℹ जतन केलेला डेटा वापरला जात आहे (लाइव्ह फेच अयशस्वी)।",
+        "llm_offline": "ℹ LLM निकाल कॅशमधून (ऑफलाइन मोड किंवा कोटा संपला)।",
         "no_data": "कोणताही डेटा उपलब्ध नाही. कृपया तुमचे इनपुट तपासा।",
         "retry": "कृपया पुन्हा प्रयत्न करा किंवा इंटरनेट कनेक्शन तपासा।",
-        "short_history": "⚠️ {} चा 1 वर्षापेक्षा कमी इतिहास आहे. परिणाम कमी विश्वसनीय असू शकतात।",
-        "single_asset": "ℹ️ एकल-मालमत्ता पोर्टफोलिओ. विविधीकरण मेट्रिक्स लागू नाहीत।",
-        "dropped_tickers": "⚠️ अपुऱ्या डेटामुळे काही टिकर काढले गेले: {}",
+        "short_history": "{} चा 1 वर्षापेक्षा कमी इतिहास आहे. परिणाम कमी विश्वसनीय असू शकतात।",
+        "single_asset": "ℹ एकल-मालमत्ता पोर्टफोलिओ. विविधीकरण मेट्रिक्स लागू नाहीत।",
+        "dropped_tickers": "अपुऱ्या डेटामुळे काही टिकर काढले गेले: {}",
     },
 }
 
@@ -482,3 +484,21 @@ def usage_stats() -> dict:
         "groq":    {"calls": 0, "cache_hits": 0, "failures": 0},
         "mistral": {"calls": 0, "cache_hits": 0, "failures": 0},
     })
+
+
+
+def strip_emojis(text: str) -> str:
+    """Strip all emoji codepoints and selectors from text."""
+    if not isinstance(text, str):
+        return text
+    # Constructed using character codes so this source file contains no literal emoji codepoints
+    pat = (
+        "["
+        + chr(0x1F000) + "-" + chr(0x1FAFF)
+        + chr(0x2600) + "-" + chr(0x27BF)
+        + chr(0x2300) + "-" + chr(0x23FF)
+        + chr(0x2B50) + "-" + chr(0x2B55)
+        + chr(0xFE0F) + chr(0x200D)
+        + "]"
+    )
+    return re.sub(pat, "", text).strip()

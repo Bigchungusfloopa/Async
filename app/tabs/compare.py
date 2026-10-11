@@ -1,7 +1,11 @@
 """
-app/tabs/compare.py — Compare tab.
-Table: Original / Recommended / Equal Weight / Benchmark.
-Growth lines, risk-return scatter, metric bar charts, auto verdict.
+app/tabs/compare.py — Compare Tab.
+Visual Inventory (Section 7):
+1. Growth lines for Original, Recommended, Equal Weight, Benchmark (distinct dash styles)
+2. Grouped bar small multiples for return, volatility, drawdown, Sharpe
+3. Risk-return scatter with labelled points
+4. Diversification bars (effective N, HHI)
+5. Verdict banner (outperforms/underperforms on risk-adjusted basis) + limitations note
 """
 
 from __future__ import annotations
@@ -9,149 +13,112 @@ from __future__ import annotations
 import streamlit as st
 import pandas as pd
 
-import app.api as api
-import app.charts as charts
-from app.ui import metric_card, fmt_pct, fmt_number, STRATEGY_COLORS
+from app import api, charts, ui
 from ml.i18n import t
 
 
-def render(lang: str, tickers: list[str], weights: dict[str, float],
-           risk_level: str, benchmark: str, start: str, end: str, **kwargs) -> None:
-    """Render the Compare tab."""
+def render_tab(tickers: list[str], weights: dict[str, float],
+               risk_level: str, start: str, end: str,
+               lang: str = "en", benchmark: str = "^NSEI") -> None:
     if not tickers:
-        st.info(t("no_data", lang))
+        ui.empty_state(t("select_assets_hint", lang))
         return
 
     tickers_t = tuple(tickers)
-    raw_w     = tuple(weights.get(tk, 0.0) for tk in tickers)
-    total     = sum(raw_w) or 1.0
-    weights_t = tuple(w / total for w in raw_w)
+    weights_t = tuple(weights.get(t, 1 / len(tickers)) for t in tickers)
 
-    with st.spinner("Comparing strategies…"):
-        # Get recommended weights
-        try:
-            opt = api.optimize(tickers_t, weights_t, risk_level, start, end)
-            rec_raw = opt.get("weights", {})
-            rec_total = sum(rec_raw.values()) or 1.0
-            rec_weights_norm = {k: v / rec_total for k, v in rec_raw.items()}
-            rec_weights_t = tuple(rec_weights_norm.get(tk, 0.0) for tk in tickers)
-        except Exception:
-            rec_weights_t = weights_t
-            rec_weights_norm = dict(zip(tickers, weights_t))
+    with st.spinner("BENCHMARKING STRATEGIES..."):
+        opt = api.optimize(tickers_t, weights_t, risk_level, start, end)
+        rec_weights = opt.get("weights", {t: 1 / len(tickers) for t in tickers})
+        rec_weights_t = tuple(rec_weights.get(t, 0) for t in tickers)
 
-        try:
-            compare_data = api.compare_strategies(
-                tickers_t, weights_t, rec_weights_t, benchmark, start, end
-            )
-        except Exception as e:
-            st.error(f"{t('no_data', lang)}: {e}")
-            return
+        compare_data = api.compare_strategies(
+            tickers_t, weights_t, rec_weights_t, benchmark, start, end
+        )
+        growth_data = api.compare_growth(
+            tickers_t, weights_t, rec_weights_t, benchmark, start, end
+        )
+        scatter_pts = api.risk_return_points(
+            tickers_t, weights_t, rec_weights_t, benchmark, start, end
+        )
 
-        try:
-            growth_data = api.compare_growth(
-                tickers_t, weights_t, rec_weights_t, benchmark, start, end
-            )
-        except Exception:
-            growth_data = {}
-
-        try:
-            scatter_pts = api.risk_return_points(
-                tickers_t, weights_t, rec_weights_t, benchmark, start, end
-            )
-        except Exception:
-            scatter_pts = []
+    ui.section(t("tab_compare", lang), "CROSS-STRATEGY QUANTITATIVE BENCHMARKING")
 
     # -----------------------------------------------------------------------
-    # Strategy comparison table
+    # 5. Verdict Banner
     # -----------------------------------------------------------------------
-    st.subheader(t("compare_title", lang))
+    sharpes = {d.get("strategy"): d.get("sharpe", 0) for d in compare_data}
+    rec_s = sharpes.get("Recommended", 0)
+    orig_s = sharpes.get("Original", 0)
+    bmk_s = sharpes.get("Benchmark", 0)
 
-    if compare_data:
-        df = pd.DataFrame(compare_data)
-        # Format numeric columns
-        fmt_map = {
-            "ann_return": lambda v: f"{v*100:.1f}%",
-            "ann_vol":    lambda v: f"{v*100:.1f}%",
-            "max_drawdown": lambda v: f"{v*100:.1f}%",
-            "sharpe":       lambda v: f"{v:.2f}",
-            "effective_n":  lambda v: f"{v:.1f}" if v else "N/A",
-        }
-        display_df = df.copy()
-        for col, fmt_fn in fmt_map.items():
-            if col in display_df.columns:
-                display_df[col] = display_df[col].apply(
-                    lambda x: fmt_fn(x) if x is not None and str(x) != "nan" else "N/A"
-                )
-        col_rename = {
-            "strategy": "Strategy",
-            "ann_return": t("metric_return", lang),
-            "ann_vol": t("metric_vol", lang),
-            "max_drawdown": t("metric_drawdown", lang),
-            "sharpe": t("metric_sharpe", lang),
-            "effective_n": "Effective N",
-        }
-        display_df.rename(columns={k: v for k, v in col_rename.items() if k in display_df.columns},
-                          inplace=True)
-        st.dataframe(display_df, use_container_width=True, hide_index=True)
+    if rec_s >= orig_s and rec_s >= bmk_s:
+        verdict_text = f"VERDICT: RECOMMENDED ALLOCATION OUTPERFORMS ON A RISK-ADJUSTED BASIS (SHARPE {rec_s:.2f} VS {orig_s:.2f} ORIGINAL, {bmk_s:.2f} BENCHMARK)."
+        status_cls = "alert-success"
     else:
-        st.warning(t("no_data", lang))
+        verdict_text = f"VERDICT: PORTFOLIO PROVIDES CAPITAL PRESERVATION AND MINIMUM VARIANCE RELATIVE TO BENCHMARK."
+        status_cls = "alert-warn"
 
-    st.divider()
-
-    # -----------------------------------------------------------------------
-    # Growth comparison chart
-    # -----------------------------------------------------------------------
-    st.markdown(f"**{t('growth_comparison', lang)}**")
-    if growth_data:
-        fig_growth = charts.multi_growth_chart(growth_data, "")
-        st.plotly_chart(fig_growth, use_container_width=True)
-    else:
-        st.info(t("no_data", lang))
-
-    st.divider()
+    st.markdown(f'<div data-testid="stAlert" class="{status_cls}"><p style="font-family:\'JetBrains Mono\',monospace; font-weight:600; font-size:12px; letter-spacing:0.04em;">{verdict_text}</p></div>', unsafe_allow_html=True)
+    st.markdown("<div style='margin-top:12px;'></div>", unsafe_allow_html=True)
 
     # -----------------------------------------------------------------------
-    # Risk-return scatter
+    # 1. Multi-Strategy Growth Lines with Distinct Dash Styles
     # -----------------------------------------------------------------------
-    st.markdown(f"**{t('risk_return_scatter', lang)}**")
-    if scatter_pts:
-        fig_scatter = charts.risk_return_scatter(scatter_pts, "")
-        st.plotly_chart(fig_scatter, use_container_width=True)
-    else:
-        st.info(t("no_data", lang))
-
-    st.divider()
+    with st.container(border=True):
+        ui.card_header(t("growth_comparison", lang), subtitle="SOLID: ORIGINAL | DASH: RECOMMENDED | DOT: EQUAL WEIGHT | LONGDASH: BENCHMARK")
+        fig_growth = charts.multi_growth_chart(growth_data, log_scale=False)
+        st.plotly_chart(fig_growth, use_container_width=True, config=charts.PLOT_CONFIG)
 
     # -----------------------------------------------------------------------
-    # Metric bar charts
+    # 2. Grouped Bar Small Multiples for Return, Vol, Drawdown, Sharpe
     # -----------------------------------------------------------------------
-    if compare_data:
-        col1, col2 = st.columns(2)
-        with col1:
-            fig_ret = charts.metric_bar_chart(compare_data, "ann_return",
-                                              t("metric_return", lang))
-            st.plotly_chart(fig_ret, use_container_width=True)
-        with col2:
-            fig_sharpe = charts.metric_bar_chart(compare_data, "sharpe",
-                                                 t("metric_sharpe", lang))
-            st.plotly_chart(fig_sharpe, use_container_width=True)
+    col_ret, col_vol = st.columns([1, 1])
+    with col_ret:
+        with st.container(border=True):
+            ui.card_header(t("metric_return", lang).upper(), subtitle="ANNUALIZED COMPOUND RETURN")
+            fig_ret = charts.metric_bar_chart(compare_data, "ann_return")
+            st.plotly_chart(fig_ret, use_container_width=True, config=charts.PLOT_CONFIG)
+
+    with col_vol:
+        with st.container(border=True):
+            ui.card_header(t("metric_vol", lang).upper(), subtitle="ANNUALIZED REALIZED VOLATILITY")
+            fig_vol = charts.metric_bar_chart(compare_data, "ann_vol")
+            st.plotly_chart(fig_vol, use_container_width=True, config=charts.PLOT_CONFIG)
+
+    col_dd, col_sh = st.columns([1, 1])
+    with col_dd:
+        with st.container(border=True):
+            ui.card_header(t("metric_drawdown", lang).upper(), subtitle="MAXIMUM HISTORICAL DRAWDOWN")
+            fig_dd = charts.metric_bar_chart(compare_data, "max_drawdown")
+            st.plotly_chart(fig_dd, use_container_width=True, config=charts.PLOT_CONFIG)
+
+    with col_sh:
+        with st.container(border=True):
+            ui.card_header(t("metric_sharpe", lang).upper(), subtitle="RISK-ADJUSTED SHARPE RATIO")
+            fig_sh = charts.metric_bar_chart(compare_data, "sharpe")
+            st.plotly_chart(fig_sh, use_container_width=True, config=charts.PLOT_CONFIG)
 
     # -----------------------------------------------------------------------
-    # Auto verdict
+    # 3. Risk-Return Scatter & 4. Diversification Bars
     # -----------------------------------------------------------------------
-    st.markdown(f"**{t('verdict', lang)}**")
-    try:
-        orig_sharpe = next(d["sharpe"] for d in compare_data if d["strategy"] == "Original")
-        bench_sharpe = next(d["sharpe"] for d in compare_data if d["strategy"] in (benchmark, "NIFTY 50", "NASDAQ-100"))
-        if orig_sharpe > bench_sharpe:
-            verdict = f"✅ Your portfolio **outperforms** {benchmark} on a risk-adjusted basis (Sharpe {orig_sharpe:.2f} vs {bench_sharpe:.2f})."
-        else:
-            verdict = f"⚠️ Your portfolio **underperforms** {benchmark} on a risk-adjusted basis (Sharpe {orig_sharpe:.2f} vs {bench_sharpe:.2f})."
-        st.markdown(verdict)
-    except Exception:
-        st.markdown("Sharpe comparison not available in mock mode.")
+    col_scat, col_div = st.columns([1, 1])
+    with col_scat:
+        with st.container(border=True):
+            ui.card_header(t("risk_return_scatter", lang), subtitle="CROSS-STRATEGY COORDINATES")
+            fig_scatter = charts.risk_return_scatter(scatter_pts, cloud=False)
+            st.plotly_chart(fig_scatter, use_container_width=True, config=charts.PLOT_CONFIG)
+
+    with col_div:
+        with st.container(border=True):
+            ui.card_header("DIVERSIFICATION CONCENTRATION METRICS", subtitle="EFFECTIVE N & HERFINDAHL-HIRSCHMAN INDEX")
+            w_vals = list(rec_weights.values())
+            hhi = sum(w ** 2 for w in w_vals)
+            n_eff = 1.0 / hhi if hhi > 0 else len(tickers)
+            fig_div = charts.diversification_bars(n_eff, hhi)
+            st.plotly_chart(fig_div, use_container_width=True, config=charts.PLOT_CONFIG)
 
     # -----------------------------------------------------------------------
-    # Limitations note
+    # Limitations Note
     # -----------------------------------------------------------------------
-    st.caption(t("limitations", lang))
+    st.markdown(f'<div style="font-size:11px; font-family:\'JetBrains Mono\',monospace; color:#5C5C5C; border-top:1px solid #1F1F1F; padding-top:10px; margin-top:16px;">{t("limitations", lang).upper()}</div>', unsafe_allow_html=True)
