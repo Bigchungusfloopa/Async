@@ -133,13 +133,14 @@ def _top_factors(bundle: dict, x: np.ndarray, proba: np.ndarray, k: int = 3) -> 
     base_risk = float(proba @ np.array([0.0, 1.0, 2.0]))
     occluded = model.predict_proba(batch) @ np.array([0.0, 1.0, 2.0])
     effect = base_risk - occluded                      # >0: this feature pushes the portfolio toward higher risk
+    total = float(np.abs(effect).sum()) or 1.0         # denominator for the share of the model's total attribution
     out = []
     for j in np.argsort(-np.abs(effect))[:k]:
         n = names[j]
         label, fmt = _DISPLAY.get(n, (n, lambda v: f"{v:.2f}"))
         out.append({"name": label, "value": fmt(float(x[j])),
                     "impact": "raises risk" if effect[j] > 0 else "lowers risk",
-                    "feature": n, "effect": float(effect[j])})
+                    "feature": n, "effect": float(effect[j]), "share": float(abs(effect[j]) / total)})
     return out
 
 

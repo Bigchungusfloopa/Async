@@ -13,6 +13,7 @@ app/api.py - backend adapter between the Streamlit tabs and the real ``engine/``
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -96,6 +97,36 @@ def get_prices(tickers: tuple[str, ...], start: str, end: str) -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------------------
+# ticker tape
+# ---------------------------------------------------------------------------
+_TAPE_NAMES = {"^NSEI": "NIFTY 50", "^GSPC": "S&P 500", "^NDX": "NASDAQ-100", "^IXIC": "NASDAQ"}
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def latest_quotes(symbols: tuple[str, ...]) -> list[dict]:
+    """``[{"symbol", "price", "change_pct"}]`` from each symbol's last two closes. Symbols without two real
+    closes are simply left out: the tape never shows invented prices."""
+    if USE_MOCKS:   # UI development only: clearly illustrative
+        return [{"symbol": s, "price": 100.0 + 7 * i, "change_pct": (-1) ** i * (0.2 + 0.1 * i)}
+                for i, s in enumerate(symbols)]
+    try:
+        from engine.data import get_prices as _real
+        today = pd.Timestamp.today().normalize()
+        px = _real(list(symbols), (today - pd.Timedelta(days=30)).strftime("%Y-%m-%d"),
+                   today.strftime("%Y-%m-%d"), align="outer", min_rows=1)
+        out = []
+        for sym in symbols:
+            if sym in px.columns:
+                s = px[sym].dropna()
+                if len(s) >= 2 and s.iloc[-2] > 0:
+                    out.append({"symbol": _TAPE_NAMES.get(sym, sym), "price": float(s.iloc[-1]),
+                                "change_pct": float(s.iloc[-1] / s.iloc[-2] - 1.0) * 100.0})
+        return out
+    except Exception:
+        return []
+
+
+# ---------------------------------------------------------------------------
 # engine/metrics.py
 # ---------------------------------------------------------------------------
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -121,6 +152,23 @@ def risk_contribution(tickers: tuple[str, ...], weights_tuple: tuple[float, ...]
         except Exception as e:
             st.warning(f"Risk contribution failed ({e}). Using mock.")
     return helpers.get("risk_contribution", {t: 1 / len(tickers) for t in tickers})
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def random_portfolio_cloud(tickers: tuple[str, ...], start: str, end: str, n: int = 400) -> list[dict]:
+    """``n`` random long-only weightings of the user's own assets, scored on their real history
+    (the feasible risk/return region behind the scatter). Empty in mock mode or with < 2 assets."""
+    if USE_MOCKS or len(tickers) < 2:
+        return []
+    try:
+        from engine.metrics import lw_covariance, prepare
+        p = prepare(get_prices(tickers, start, end), {t: 1.0 for t in tickers})
+        mu, cov = p.logret.mean(axis=0) * 252, lw_covariance(p.logret)
+        w = np.random.default_rng(7).dirichlet(np.ones(len(p.tickers)), size=n)
+        rets, vols = np.expm1(w @ mu), np.sqrt(np.einsum("ij,jk,ik->i", w, cov, w))
+        return [{"ann_return": float(r), "ann_vol": float(v)} for r, v in zip(rets, vols)]
+    except Exception:
+        return []
 
 
 # ---------------------------------------------------------------------------
@@ -375,12 +423,13 @@ def _ui_classification(r: dict) -> dict:
     """Real classifier output -> what the tabs draw.
 
     The factor chart wants signed numbers (negative = pushes risk up, drawn red), so each factor becomes
-    ``{"name": "Volatility, last 6 months (28%)", "impact": -0.31}``; the raw dicts stay under ``factors``.
+    ``{"name": "Volatility, last 6 months (28%)", "impact": -0.31}`` where |impact| is that factor's *share of the
+    model's total attribution* (so the chart's "%" is meaningful); the raw dicts stay under ``factors``.
     """
     tf = []
     for f in r.get("top_factors", []):
         if isinstance(f, dict):
-            mag = abs(float(f.get("effect", 0.0))) or 0.05
+            mag = abs(float(f.get("share", f.get("effect", 0.0)))) or 0.05
             sign = -1.0 if f.get("impact", "raises risk") == "raises risk" else 1.0
             tf.append({"name": f"{f.get('name', '')} ({f.get('value', '')})", "impact": sign * mag})
         else:
@@ -430,15 +479,42 @@ def explain_allocation(tickers: tuple[str, ...], original_weights: tuple[float, 
 # ---------------------------------------------------------------------------
 # ml/news.py, ml/voice.py
 # ---------------------------------------------------------------------------
+_SENTIMENT_SCORE = {"Positive": 0.6, "Neutral": 0.0, "Negative": -0.6}   # category -> bar length (not a measurement)
+
+
+def _ui_news(r: dict) -> dict:
+    """Add the keys the News tab draws: ``sentiments`` {ticker: score} only for tickers the model actually
+    rated, and ``sector_trends`` as a list of short statements."""
+    trends = r.get("sector_trends", [])
+    if isinstance(trends, str):
+        trends = [s.strip() for s in re.split(r"(?<=[.;])\s+|\n", trends) if s.strip()]
+    sentiments = {p["ticker"]: _SENTIMENT_SCORE.get(p.get("sentiment"), 0.0) for p in r.get("per_ticker", [])
+                  if isinstance(p, dict) and p.get("ticker")}
+    return {**r, "sentiments": sentiments, "sector_trends": trends}
+
+
 @st.cache_data(ttl=3600, show_spinner=False)
 def get_news_insight(tickers: tuple[str, ...], lang: str = "en") -> dict:
+    """Fetch headlines and summarise them (one LLM call). Call from the GENERATE button only."""
     if not USE_MOCKS:
         try:
             from ml.news import get_news_insight as _real
-            return _real(list(tickers), lang)
+            return _ui_news(_real(list(tickers), lang))
         except Exception as e:
             st.warning(f"News insight failed ({e}). Using mock.")
-    return _load_mock("mock_news_insight.json")
+    return _ui_news(_load_mock("mock_news_insight.json"))
+
+
+def cached_news_insight(tickers: tuple[str, ...], lang: str = "en") -> dict:
+    """The last generated insight for these tickers, if any. Never touches the network or an LLM (so it is
+    safe on every render); not Streamlit-cached on purpose, it is a local file read."""
+    if USE_MOCKS:
+        return _ui_news(_load_mock("mock_news_insight.json"))
+    try:
+        from ml.news import get_news_insight as _real
+        return _ui_news(_real(list(tickers), lang, cached_only=True))
+    except Exception:
+        return {}
 
 
 def transcribe(audio_bytes: bytes, lang_hint: str = "hi") -> str:

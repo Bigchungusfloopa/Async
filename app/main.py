@@ -34,12 +34,19 @@ from app.report import export_button
 
 # ─── page config (Strictly dark, expanded, no emoji page icon) ──────────────
 st.set_page_config(
-    page_title="Investment Risk Terminal",
+    page_title="Async",
     page_icon=None,
     layout="wide",
     initial_sidebar_state="expanded",
 )
 inject_css()
+# The sidebar has no collapse control; forget any collapsed state a browser stored earlier.
+import streamlit.components.v1 as _components
+_components.html(
+    "<script>try{const ls=window.parent.localStorage;"
+    "Object.keys(ls).filter(k=>k.startsWith('stSidebarCollapsed')).forEach(k=>ls.removeItem(k));}catch(e){}</script>",
+    height=0,
+)
 
 # ─── load universe ──────────────────────────────────────────────────────────
 # data/universe.json is the single source of truth (flat list shared with engine/ and ml/); group it by
@@ -110,6 +117,7 @@ def _init_state() -> None:
 
 
 _init_state()
+set_offline(st.session_state["offline"])      # keep the AI backend in step with THIS session's switch
 
 
 def _weights_from_amounts() -> dict[str, float]:
@@ -119,17 +127,20 @@ def _weights_from_amounts() -> dict[str, float]:
     return {k: v / total for k, v in amounts.items()}
 
 
-def _on_offline_change():
-    set_offline(st.session_state["_offline_toggle"])
-    st.session_state["offline"] = st.session_state["_offline_toggle"]
+def _on_online_change():
+    """Switch ON = AI online, OFF = offline (cached results and templates only)."""
+    offline = not st.session_state["_online_toggle"]
+    set_offline(offline)
+    st.session_state["offline"] = offline
 
 
 # ════════════════════════════════════════════════════════════════════════════
 # SIDEBAR (320px, strictly grouped under 11px uppercase headings, no emojis)
 # ════════════════════════════════════════════════════════════════════════════
 with st.sidebar:
+    st.markdown('<div class="brand-wordmark">ASYNC</div>', unsafe_allow_html=True)
     st.markdown('<div class="sidebar-header">LANGUAGE AND MODE</div>', unsafe_allow_html=True)
-    col_lang, col_offline = st.columns([2, 1])
+    col_lang, col_offline = st.columns([5, 4])
     with col_lang:
         lang_map = {"English": "en", "हिन्दी": "hi", "मराठी": "mr"}
         chosen_lang_label = st.selectbox(
@@ -145,14 +156,31 @@ with st.sidebar:
         st.session_state["lang"] = lang_map[chosen_lang_label]
     with col_offline:
         st.markdown("<div style='margin-top:4px;'></div>", unsafe_allow_html=True)
+        if "_online_toggle" not in st.session_state:
+            st.session_state["_online_toggle"] = not st.session_state["offline"]
         st.toggle(
-            "OFFLINE",
-            value=st.session_state["offline"],
-            key="_offline_toggle",
-            on_change=_on_offline_change,
+            "ONLINE" if st.session_state["_online_toggle"] else "OFFLINE",   # label shows the current state
+            key="_online_toggle",
+            on_change=_on_online_change,
+            help="On: AI translation, news summaries and voice are live. Off: cached results and templates only.",
         )
 
     lang = st.session_state["lang"]
+
+    if st.button("REFRESH DATA", key="refresh_data_btn", use_container_width=True,
+                 help="Re-fetch the latest prices and recompute everything (clears cached results)."):
+        st.cache_data.clear()                                   # all cached engine/ML results
+        try:
+            from engine import data as _engine_data
+            _engine_data._tail_tried.clear()                    # allow an immediate re-check for newer prices
+            _engine_data._head_tried.clear()
+        except Exception:
+            pass
+        for _k in [k for k in st.session_state.keys() if str(k).startswith("news_")]:
+            del st.session_state[_k]                            # force a fresh market-intel summary on demand
+        st.session_state["_refreshed_at"] = date.today().isoformat()
+        st.toast("Data refreshed: prices re-checked and results recomputed.")
+        st.rerun()
 
     # ── LLM Usage Panel ─────────────────────────────────────────────────────
     with st.expander("LLM USAGE PANEL", expanded=False):
@@ -370,6 +398,7 @@ with st.sidebar:
                 )
             if ok:
                 st.success("Portfolio saved.")
+                st.toast(f"Portfolio '{session_name}' saved.")
     with c_load:
         if st.button("LOAD", key="load_portfolio_btn", use_container_width=True):
             with st.spinner("LOADING..."):
@@ -379,7 +408,8 @@ with st.sidebar:
                 st.session_state["amounts"] = saved.get("amounts", st.session_state["amounts"])
                 st.session_state["risk_level"] = saved.get("risk_level", "Medium")
                 st.session_state["total_investment"] = sum(saved.get("amounts", {}).values())
-                st.success("Portfolio loaded.")
+                st.toast(f"Portfolio '{session_name}' loaded: {len(st.session_state['tickers'])} assets, "
+                         f"{st.session_state['risk_level']} risk.")       # a toast survives the rerun below
                 st.rerun()
 
     # PDF Export Button
@@ -438,7 +468,8 @@ top_bar(
 )
 
 # Ticker tape marquee
-render_ticker_tape([], height=34)
+_tape_symbols = ("^NSEI", "^GSPC", "^NDX") + tuple(tickers[:10])
+render_ticker_tape(api.latest_quotes(_tape_symbols), height=34)
 
 if not tickers:
     ui.empty_state("NO ASSETS SELECTED. CONFIGURE HOLDINGS IN THE SIDEBAR.")
@@ -473,7 +504,8 @@ common = dict(
 with tabs[0]:
     try:
         from app.tabs.build import render_tab as _render_risk
-        _render_risk(tickers=tickers, weights=weights, start=start, end=end, lang=lang, benchmark=benchmark)
+        _render_risk(tickers=tickers, weights=weights, start=start, end=end, lang=lang, benchmark=benchmark,
+                     risk_level=risk_level)
     except Exception as e:
         st.error(f"Risk module error: {e}")
 

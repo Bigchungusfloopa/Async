@@ -123,15 +123,23 @@ def growth_chart(growth_data: dict | pd.Series, log_scale: bool = False,
     ))
     fig.add_hline(y=100, line_dash="dot", line_color="#2E2E2E", line_width=1)
 
-    if regimes and len(dates) > 30:
-        # Subtle flat rectangles for historical regimes if within date range
-        fig.add_vrect(x0=dates[len(dates)//4], x1=dates[len(dates)//2],
-                      fillcolor="#111111", opacity=0.35, line_width=0,
-                      annotation_text="REGIME SHIFT", annotation_position="top left",
-                      annotation_font=dict(size=9, color="#5C5C5C", family="JetBrains Mono"))
+    if regimes and len(values) > 30:
+        # shade the real worst peak-to-trough period of this series
+        v = np.asarray(values, dtype="float64")
+        dd = v / np.maximum.accumulate(v) - 1.0
+        trough = int(np.argmin(dd))
+        peak = int(np.argmax(v[: trough + 1]))
+        if trough > peak and dd[trough] < -0.02:
+            fig.add_vrect(x0=dates[peak], x1=dates[trough], fillcolor="#EF4444", opacity=0.08, line_width=0,
+                          annotation_text=f"MAX DRAWDOWN {dd[trough] * 100:.0f}%", annotation_position="top left",
+                          annotation_font=dict(size=9, color="#8A8A8A", family="JetBrains Mono"))
 
     if log_scale:
         fig.update_yaxes(type="log")
+    elif len(values):
+        lo, hi = min(min(values), 100.0), max(max(values), 100.0)
+        pad = max((hi - lo) * 0.08, 1.0)
+        fig.update_yaxes(range=[lo - pad, hi + pad])      # the fill is clipped; do not force the axis to zero
     return _clean_figure(fig)
 
 
@@ -306,7 +314,7 @@ def return_distribution_hist(returns_list: list[float] | pd.Series,
 def top_factors_bars(factors: list[dict] | list[str]) -> go.Figure:
     """Top model risk factors signed horizontal bars."""
     names = []
-    impacts = []
+    shares = []
     colors = []
     for i, f in enumerate(factors[:5]):
         if isinstance(f, dict):
@@ -316,15 +324,21 @@ def top_factors_bars(factors: list[dict] | list[str]) -> go.Figure:
             nm = str(f)
             imp = -0.2 * (i + 1)
         names.append(nm)
-        impacts.append(imp * 100)
-        colors.append("#EF4444" if imp < 0 else "#22C55E")
+        shares.append(abs(imp) * 100)                     # size = share of the model's attribution
+        colors.append("#EF4444" if imp < 0 else "#22C55E")  # red = pushes risk up, green = pulls it down
 
     fig = go.Figure()
     fig.add_trace(go.Bar(
-        y=names, x=impacts, orientation="h",
-        marker_color=colors,
-        hovertemplate="%{y}: %{x:.1f}%<extra></extra>",
+        y=names, x=shares, orientation="h", marker_color=colors, width=0.55,
+        text=[f"{v:.0f}%" for v in shares], textposition="outside", cliponaxis=False,
+        hovertemplate="%{y}: %{x:.0f}% of the model's attribution<extra></extra>",
     ))
+    fig.update_layout(
+        height=max(150, 46 * len(names) + 40), bargap=0.4, showlegend=False,
+        margin=dict(l=8, r=40, t=8, b=8),
+        xaxis=dict(visible=False, range=[0, max(shares + [10]) * 1.25]),
+        yaxis=dict(autorange="reversed", automargin=True),
+    )
     return _clean_figure(fig)
 
 
@@ -411,15 +425,14 @@ def weight_comparison_chart(original: dict, recommended: dict, title: str = "") 
 # ---------------------------------------------------------------------------
 # 12. Risk-Return Scatter with Flat-Dot Cloud
 # ---------------------------------------------------------------------------
-def risk_return_scatter(points: list[dict], cloud: bool = True) -> go.Figure:
-    """Risk-return scatter with random portfolio flat-dot cloud behind them."""
+def risk_return_scatter(points: list[dict], cloud: bool = True,
+                        cloud_points: list[dict] | None = None) -> go.Figure:
+    """Risk-return scatter; optional cloud of *real* random portfolios (``cloud_points``) behind it."""
     fig = go.Figure()
 
-    if cloud:
-        rng = np.random.default_rng(42)
-        n_pts = 120
-        cloud_vols = rng.uniform(10, 32, n_pts)
-        cloud_rets = cloud_vols * 0.65 + rng.normal(0, 3.5, n_pts)
+    if cloud and cloud_points:
+        cloud_vols = np.array([c["ann_vol"] for c in cloud_points]) * 100
+        cloud_rets = np.array([c["ann_return"] for c in cloud_points]) * 100
         fig.add_trace(go.Scatter(
             x=cloud_vols.tolist(), y=cloud_rets.tolist(),
             mode="markers",

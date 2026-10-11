@@ -41,29 +41,27 @@ def render_tab(tickers: list[str], lang: str = "en") -> None:
             type="primary",
         )
 
-    # Check cache / session state
+    # Session state first, then a previously generated insight (local read). The LLM / network is only used
+    # when the GENERATE button is pressed.
     cache_key = f"news_{'_'.join(sorted(tickers))}_{lang}"
-    if generate or cache_key in st.session_state:
-        if generate:
-            with st.spinner("SYNTHESIZING MARKET INTELLIGENCE..."):
-                insight = api.get_news_insight(tuple(tickers), lang)
-                st.session_state[cache_key] = insight
-        else:
-            insight = st.session_state[cache_key]
+    if generate:
+        with st.spinner("SYNTHESIZING MARKET INTELLIGENCE..."):
+            insight = api.get_news_insight(tuple(tickers), lang)
+            st.session_state[cache_key] = insight
+    elif cache_key in st.session_state:
+        insight = st.session_state[cache_key]
     else:
-        # Load mock defaults
-        insight = api.get_news_insight(tuple(tickers), lang)
+        insight = api.cached_news_insight(tuple(tickers), lang)
 
-    summary = insight.get("summary", "Market environment indicates consolidation in defensive heavyweights.")
-    sentiments = insight.get("sentiments", {t: 0.35 for t in tickers})
-    sector_trends = insight.get("sector_trends", ["Banking margins expanding", "IT valuations stable"])
-    risks = insight.get("risks", ["Regulatory rate changes", "Foreign institutional outflows", "FX volatility"])
-    headlines = insight.get("headlines", [
-        {"title": f"{tickers[0]} beats Q3 margin guidance", "source": "Reuters", "time": "2h ago"},
-        {"title": "RBI keeps repo rate unchanged in monetary policy review", "source": "Bloomberg", "time": "4h ago"},
-        {"title": "Global tech index gains 1.2% amidst rate cut expectations", "source": "FT", "time": "6h ago"},
-    ])
-    src_type = insight.get("source", "cache")
+    summary = insight.get("summary", "")
+    sentiments = insight.get("sentiments", {}) or {}
+    sector_trends = insight.get("sector_trends", []) or []
+    risks = insight.get("risks", []) or []
+    headlines = insight.get("headlines", []) or []
+    src_type = insight.get("source", "offline")
+    if not (summary or headlines):
+        ui.empty_state("NO MARKET INTELLIGENCE YET. PRESS GENERATE INSIGHT TO FETCH HEADLINES AND SUMMARISE THEM.")
+        return
 
     with c_source:
         st.markdown(
@@ -79,13 +77,17 @@ def render_tab(tickers: list[str], lang: str = "en") -> None:
     col_bar, col_donut = st.columns([1, 1])
     with col_bar:
         with st.container(border=True):
-            ui.card_header("ASSET SENTIMENT SCORES", subtitle="RANGE: -1.0 (BEARISH) TO +1.0 (BULLISH)")
-            fig_sent = charts.sentiment_diverging_bar(sentiments)
-            st.plotly_chart(fig_sent, use_container_width=True, config=charts.PLOT_CONFIG, key="news_chart_1")
+            ui.card_header("ASSET SENTIMENT", subtitle="MODEL'S CATEGORY PER ASSET: BEARISH / NEUTRAL / BULLISH")
+            if sentiments:
+                fig_sent = charts.sentiment_diverging_bar(sentiments)
+                st.plotly_chart(fig_sent, use_container_width=True, config=charts.PLOT_CONFIG, key="news_chart_1")
+            else:
+                st.markdown("<div style='font-size:12px; color:#8A8A8A;'>The model returned no per-asset sentiment.</div>",
+                            unsafe_allow_html=True)
 
     with col_donut:
         with st.container(border=True):
-            ui.card_header("SENTIMENT DISTRIBUTION", subtitle="PROPORTION OF NEWS COVERAGE")
+            ui.card_header("SENTIMENT DISTRIBUTION", subtitle="SHARE OF RATED ASSETS BY CATEGORY")
             pos_cnt = sum(1 for v in sentiments.values() if v > 0.1)
             neg_cnt = sum(1 for v in sentiments.values() if v < -0.1)
             neu_cnt = len(sentiments) - pos_cnt - neg_cnt
@@ -94,8 +96,11 @@ def render_tab(tickers: list[str], lang: str = "en") -> None:
                 "Neutral": neu_cnt / max(len(sentiments), 1),
                 "Negative": neg_cnt / max(len(sentiments), 1),
             }
-            fig_donut = charts.sentiment_share_donut(share)
-            st.plotly_chart(fig_donut, use_container_width=True, config=charts.PLOT_CONFIG, key="news_chart_2")
+            if sentiments:
+                fig_donut = charts.sentiment_share_donut(share)
+                st.plotly_chart(fig_donut, use_container_width=True, config=charts.PLOT_CONFIG, key="news_chart_2")
+            else:
+                st.markdown("<div style='font-size:12px; color:#8A8A8A;'>Nothing to show.</div>", unsafe_allow_html=True)
 
     # -----------------------------------------------------------------------
     # 5. Summary Card & Compact Risk Chip List
@@ -137,7 +142,7 @@ def render_tab(tickers: list[str], lang: str = "en") -> None:
                 </div>
                 <div style="flex-grow:1;">
                     <div style="font-size:13px; font-weight:500; color:#F5F5F5;">{title}</div>
-                    <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#8A8A8A; margin-top:2px;">{src.upper()} &bull; {t_str.upper()}</div>
+                    <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#8A8A8A; margin-top:2px;">{src.upper()}{(" &bull; " + t_str.upper()) if t_str else ""}</div>
                 </div>
             </div>
             """

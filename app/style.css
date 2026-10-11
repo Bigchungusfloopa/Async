@@ -153,11 +153,32 @@ div[data-baseweb="select"] > div {
 div[data-baseweb="select"] span {
   color: var(--text) !important;
 }
-div[data-baseweb="tag"] {
+/* multiselect chips: rendered as <span> (older Streamlit used <div>), so match any element */
+[data-baseweb="tag"] {
   background-color: var(--surface-2) !important;
-  border: 1px solid var(--border) !important;
+  border: 1px solid var(--border-strong) !important;
   border-radius: 4px !important;
   color: var(--text) !important;
+}
+[data-baseweb="tag"] span, [data-baseweb="tag"] div, [data-baseweb="tag"] p {
+  color: var(--text) !important;
+}
+[data-baseweb="tag"] svg {
+  fill: var(--text-muted) !important;
+}
+/* Streamlit >= 1.4x multiselect chips: <span data-tag> inside stMultiSelectTagsContainer */
+[data-testid="stMultiSelectTagsContainer"] [data-tag] {
+  background-color: var(--surface-2) !important;
+  border: 1px solid var(--border-strong) !important;
+  border-radius: 4px !important;
+  color: var(--text) !important;
+}
+[data-testid="stMultiSelectTagsContainer"] [data-tag] span,
+[data-testid="stMultiSelectTagsContainer"] [data-tag] div {
+  color: var(--text) !important;
+}
+[data-testid="stMultiSelectTagsContainer"] [data-tag] svg {
+  fill: var(--text-muted) !important;
 }
 
 /* Buttons */
@@ -489,4 +510,40 @@ div[data-testid="stAlert"] p {
   .ticker-tape-track {
     animation: none !important;
   }
+}
+
+/* Sidebar is always open: no collapse / expand controls (the app is unusable without the sidebar) */
+[data-testid="stSidebarCollapseButton"],
+[data-testid="stExpandSidebarButton"],
+[data-testid="stSidebarCollapsedControl"],
+[data-testid="collapsedControl"] {
+  display: none !important;
+}
+
+/* Always-visible sidebar, even if a browser remembered a collapsed state (localStorage stSidebarCollapsed-*):
+   Streamlit hides it with translateX(-300px); cancel that. */
+section[data-testid="stSidebar"],
+section[data-testid="stSidebar"][aria-expanded="false"] {
+  transform: none !important;
+  margin-left: 0 !important;
+  visibility: visible !important;
+  display: flex !important;
+}
+
+/* Brand wordmark, top-left corner (top of the always-open sidebar) */
+[data-testid="stSidebarHeader"] {
+  display: none !important;            /* only held the (removed) collapse button: reclaim the space */
+}
+section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] {
+  padding-top: 22px !important;
+}
+.brand-wordmark {
+  font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+  font-weight: 800;
+  font-size: 28px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text);
+  line-height: 1;
+  margin: 0 0 18px 0;
 }

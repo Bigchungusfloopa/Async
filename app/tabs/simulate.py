@@ -73,13 +73,20 @@ def render_tab(tickers: list[str], weights: dict[str, float],
 
     with col_sharpe:
         with st.container(border=True):
-            ui.card_header("ROLLING SHARPE RATIO", subtitle="126-DAY ROLLING RISK-ADJUSTED PERFORMANCE")
-            returns = prices_df.pct_change().dropna()
-            mean_ret = returns.mean(axis=1) if not returns.empty else pd.Series(np.random.normal(0.0005, 0.012, 250))
-            roll_ret = mean_ret.rolling(126).mean() * 252 - 0.065
-            roll_vol = mean_ret.rolling(126).std() * np.sqrt(252)
-            roll_sharpe = (roll_ret / roll_vol.replace(0, np.nan)).dropna()
-            dates = roll_sharpe.index.astype(str).tolist()
+            g = pd.Series(growth_data, dtype="float64")
+            g.index = pd.to_datetime(g.index)
+            g = g.sort_index()
+            daily = g.pct_change().dropna()
+            win = int(min(126, max(20, len(daily) // 3)))
+            try:
+                from engine.metrics import default_rf
+                rf = default_rf(list(tickers), [weights.get(x, 1 / len(tickers)) for x in tickers])
+            except Exception:
+                rf = 0.065
+            ui.card_header("ROLLING SHARPE RATIO", subtitle=f"{win}-DAY ROLLING, PORTFOLIO RETURNS, RF {rf * 100:.1f}%")
+            roll_sharpe = ((daily.rolling(win).mean() * 252 - rf)
+                           / (daily.rolling(win).std() * np.sqrt(252)).replace(0, np.nan)).dropna()
+            dates = roll_sharpe.index.strftime("%Y-%m-%d").tolist()
             vals = roll_sharpe.tolist()
 
             fig_sharpe = go.Figure()
@@ -102,15 +109,20 @@ def render_tab(tickers: list[str], weights: dict[str, float],
         with st.container(border=True):
             ui.card_header("MONTHLY RETURNS MATRIX", subtitle="7-BIN DISCRETE STEPPED RETURN CALENDAR")
             months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-            years = ["2022", "2023", "2024"]
-            rng = np.random.default_rng(42)
-            z_m = rng.uniform(-8, 9, (len(years), len(months))).tolist()
+            m_end = g.resample("ME").last()
+            m_ret = m_end.pct_change()
+            if len(m_end):
+                m_ret.iloc[0] = m_end.iloc[0] / g.iloc[0] - 1.0                 # first (partial) month from the start
+            years = sorted({str(d.year) for d in m_ret.index})
+            z_m = [[None] * 12 for _ in years]
+            for d, v in m_ret.items():
+                z_m[years.index(str(d.year))][d.month - 1] = None if pd.isna(v) else float(v * 100)
 
             fig_m = go.Figure(go.Heatmap(
                 z=z_m, x=months, y=years,
                 colorscale=charts.DISCRETE_SCALE_DIV,
                 zmin=-10, zmax=10,
-                text=[[f"{v:+.1f}%" for v in row] for row in z_m],
+                text=[[("" if v is None else f"{v:+.1f}%") for v in row] for row in z_m],
                 texttemplate="%{text}",
                 textfont=dict(family="JetBrains Mono, monospace", size=10, color="#F5F5F5"),
                 showscale=False,
@@ -122,8 +134,12 @@ def render_tab(tickers: list[str], weights: dict[str, float],
     with col_annual:
         with st.container(border=True):
             ui.card_header("ANNUAL NET RETURNS", subtitle="CALENDAR YEAR PERFORMANCE")
-            ann_years = ["2021", "2022", "2023", "2024"]
-            ann_rets = [24.5, -11.2, 19.8, 14.6]
+            y_end = g.resample("YE").last()
+            y_ret = y_end.pct_change()
+            if len(y_end):
+                y_ret.iloc[0] = y_end.iloc[0] / g.iloc[0] - 1.0                 # partial first year from the start
+            ann_years = [str(d.year) for d in y_ret.index]
+            ann_rets = [float(v * 100) for v in y_ret.fillna(0.0)]
             colors = ["#22C55E" if r >= 0 else "#EF4444" for r in ann_rets]
             fig_ann = go.Figure(go.Bar(
                 x=ann_years, y=ann_rets,
@@ -142,15 +158,19 @@ def render_tab(tickers: list[str], weights: dict[str, float],
     # -----------------------------------------------------------------------
     with st.container(border=True):
         ui.card_header("REGIME PERFORMANCE METRICS", subtitle="COMPARATIVE METRIC SUMMARY")
-        regime_summary = [
-            {"Regime": chosen, "Ann. Return": f"{metrics.get('ann_return', 0.15)*100:+.1f}%",
-             "Volatility": f"{metrics.get('ann_vol', 0.18)*100:.1f}%",
-             "Max Drawdown": f"{metrics.get('max_drawdown', -0.12)*100:.1f}%",
-             "Sharpe": f"{metrics.get('sharpe', 0.85):.2f}",
-             "Sortino": f"{metrics.get('sortino', 1.15):.2f}"},
-            {"Regime": "COVID Crash (2020)", "Ann. Return": "-8.4%", "Volatility": "28.5%", "Max Drawdown": "-31.2%", "Sharpe": "0.12", "Sortino": "0.18"},
-            {"Regime": "2021 Bull Run", "Ann. Return": "+32.1%", "Volatility": "14.2%", "Max Drawdown": "-7.8%", "Sharpe": "1.82", "Sortino": "2.40"},
-            {"Regime": "2022 Bear Market", "Ann. Return": "-12.5%", "Volatility": "21.6%", "Max Drawdown": "-19.4%", "Sharpe": "-0.28", "Sortino": "-0.35"},
-        ]
+        def _row(name: str, m: dict) -> dict:
+            if not m:
+                return {"Regime": name, "Ann. Return": "n/a", "Volatility": "n/a", "Max Drawdown": "n/a",
+                        "Sharpe": "n/a", "Sortino": "n/a"}
+            return {"Regime": name, "Ann. Return": f"{m['ann_return'] * 100:+.1f}%",
+                    "Volatility": f"{m['ann_vol'] * 100:.1f}%", "Max Drawdown": f"{m['max_drawdown'] * 100:.1f}%",
+                    "Sharpe": f"{m['sharpe']:.2f}", "Sortino": f"{m['sortino']:.2f}"}
+
+        regime_summary = [_row(f"{chosen} (selected)", metrics if growth_data else {})]
+        for p_name, p_win in presets.items():
+            if p_name == chosen:
+                continue
+            r = api.simulate(tickers_t, weights_t, p_win["start"], p_win["end"])
+            regime_summary.append(_row(p_name, r.get("metrics", {}) if r.get("growth") else {}))
         df_summary = pd.DataFrame(regime_summary)
         st.dataframe(df_summary, hide_index=True, use_container_width=True)

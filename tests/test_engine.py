@@ -643,3 +643,14 @@ def test_mock_files_match_real_return_shapes(scenario_world):
     real_trk = track_with_frame(px)
     assert set(trk) == set(real_trk)
     assert list(trk["table"].columns) == track.TABLE_COLUMNS
+
+
+def test_medium_uses_risk_parity_when_nothing_beats_the_risk_free_rate():
+    tickers = ["A.NS", "B.NS", "C.NS", "D.NS"]
+    px = make_prices(tickers, n=600, seed=21, drifts=[-0.30, -0.25, -0.28, -0.22], vols=[0.35, 0.15, 0.25, 0.2])
+    low, med, high = (optimizer.optimize(px, lvl) for lvl in ("Low", "Medium", "High"))
+    assert med["mode"] == "risk_parity" and "equal-risk-contribution" in med["reason"]
+    assert low["weights"] != pytest.approx(med["weights"], abs=1e-3)               # Medium is not just Low again
+    rc = metrics.risk_contribution(px, med["weights"])
+    assert rc.max() - rc.min() < 0.08                                              # risk spread ~evenly
+    assert low["metrics"]["ann_vol"] <= med["metrics"]["ann_vol"] + 1e-9

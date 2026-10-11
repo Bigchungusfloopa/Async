@@ -24,14 +24,9 @@ def render_tab(holdings_input: list[dict] | None = None,
                lang: str = "en") -> None:
     ui.section(t("tab_track", lang), "LIVE PORTFOLIO VALUATION & REAL-TIME PERFORMANCE")
 
-    # 4. Ticker Tape & 'as of' Chip with Delay Note
-    render_ticker_tape([], height=34)
-
+    # 'as of' chip + data source (filled in once the valuation is loaded)
     chip_col1, chip_col2 = st.columns([1, 1])
-    with chip_col1:
-        st.markdown(f'<div style="font-size:11px; font-family:\'JetBrains Mono\',monospace; color:#8A8A8A; margin-bottom:12px;">AS OF: {datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")} | 15-MIN DELAYED</div>', unsafe_allow_html=True)
-    with chip_col2:
-        st.markdown(f'<div style="text-align:right;"><span class="status-chip"><span class="status-dot live"></span><span>MARKET FEED: LIVE</span></span></div>', unsafe_allow_html=True)
+    asof_ph, feed_ph = chip_col1.empty(), chip_col2.empty()
 
     # Holdings Data
     if not holdings_input:
@@ -63,6 +58,17 @@ def render_tab(holdings_input: list[dict] | None = None,
     with st.spinner("FETCHING VALUATIONS..."):
         track_data = api.track_holdings(holdings_json)
 
+    _src = str(track_data.get("source", "cache"))
+    _dot = {"live": "live", "cache": "cache", "fallback": "fallback"}.get(_src, "cache")
+    asof_ph.markdown(
+        f'<div style="font-size:11px; font-family:\'JetBrains Mono\',monospace; color:#8A8A8A; margin-bottom:12px;">'
+        f'PRICES AS OF LAST CLOSE: {track_data.get("as_of", "n/a")} | END-OF-DAY DATA, MAY BE DELAYED</div>',
+        unsafe_allow_html=True)
+    feed_ph.markdown(
+        f'<div style="text-align:right;"><span class="status-chip"><span class="status-dot {_dot}"></span>'
+        f'<span>PRICE SOURCE: {_src.upper()}</span></span></div>', unsafe_allow_html=True)
+    if track_data.get("fx_rate", 1.0) != 1.0:
+        st.caption(f"USD holdings are converted to INR at {track_data['fx_rate']:.2f} (latest close) for totals.")
     table_data = track_data.get("table", [])
     total_val = track_data.get("total_value", sum(h["quantity"] * h["buy_price"] for h in holdings_list))
     total_cost = track_data.get("total_cost", sum(h["quantity"] * h["buy_price"] for h in holdings_list))
@@ -78,7 +84,7 @@ def render_tab(holdings_input: list[dict] | None = None,
             "value": f"INR {total_val:,.0f}",
             "num_val": total_val,
             "prefix": "INR ",
-            "delta": f"+INR {pnl:,.0f}",
+            "delta": f"{'+' if pnl >= 0 else '-'}INR {abs(pnl):,.0f}",
             "delta_pos": pnl >= 0,
         },
         {
@@ -107,7 +113,7 @@ def render_tab(holdings_input: list[dict] | None = None,
             "delta_pos": pnl >= 0,
         },
     ]
-    render_kpi_strip(kpi_items, height=95)
+    render_kpi_strip(kpi_items, height=115)
 
     st.markdown("<div style='margin-top:16px;'></div>", unsafe_allow_html=True)
 
@@ -147,9 +153,9 @@ def render_tab(holdings_input: list[dict] | None = None,
                 "Quantity": st.column_config.NumberColumn("Quantity", format="%d"),
                 "Buy Price": st.column_config.NumberColumn("Buy Price", format="INR %.2f"),
                 "Current Price": st.column_config.NumberColumn("Current Price", format="INR %.2f"),
-                "Total Value": st.column_config.NumberColumn("Total Value", format="INR %',.0f"),
-                "P&L (INR)": st.column_config.NumberColumn("P&L (INR)", format="INR %'+,.0f"),
-                "P&L (%)": st.column_config.NumberColumn("P&L (%)", format="%'+.2f%%"),
+                "Total Value": st.column_config.NumberColumn("Total Value", format="INR %.0f"),
+                "P&L (INR)": st.column_config.NumberColumn("P&L (INR)", format="INR %+.0f"),
+                "P&L (%)": st.column_config.NumberColumn("P&L (%)", format="%+.2f%%"),
             },
             hide_index=True,
             use_container_width=True,

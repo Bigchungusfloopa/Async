@@ -68,18 +68,18 @@ def strip_emojis(text: Any) -> str:
 # ---------------------------------------------------------------------------
 # CSS Injection
 # ---------------------------------------------------------------------------
+_CSS_PATH = Path(__file__).parent / "style.css"
+
+
 @st.cache_data
-def _load_style_css() -> str:
-    """Read app/style.css from disk."""
-    css_path = Path(__file__).parent / "style.css"
-    if css_path.exists():
-        return css_path.read_text(encoding="utf-8")
-    return ""
+def _load_style_css(mtime: float = 0.0) -> str:
+    """Read app/style.css; the cache is keyed on the file's mtime so edits apply without a restart."""
+    return _CSS_PATH.read_text(encoding="utf-8") if _CSS_PATH.exists() else ""
 
 
 def inject_css() -> None:
     """Inject the global black minimal design stylesheet."""
-    css = _load_style_css()
+    css = _load_style_css(_CSS_PATH.stat().st_mtime if _CSS_PATH.exists() else 0.0)
     if css:
         st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
 
@@ -125,9 +125,9 @@ def top_bar(source: str = "LIVE", llm_mode: str = "ONLINE", lang: str = "en") ->
     llm_class = "online" if llm_upper == "ONLINE" else "offline"
 
     st.markdown(
-        f"""
+        _flat(f"""
         <div class="top-bar">
-            <div class="top-wordmark">INVESTMENT RISK TERMINAL</div>
+            <div class="top-wordmark">ASYNC</div>
             <div class="status-chips-group">
                 <span class="status-chip">
                     <span class="status-dot {src_class}"></span>
@@ -143,22 +143,28 @@ def top_bar(source: str = "LIVE", llm_mode: str = "ONLINE", lang: str = "en") ->
                 </span>
             </div>
         </div>
-        """,
+        """),
         unsafe_allow_html=True,
     )
+
+
+def _flat(html: str) -> str:
+    """Single-line HTML. A blank line (e.g. an empty optional sub-title) ends a Markdown HTML block and the
+    indented remainder is then rendered as a *code block*; flattening removes that failure mode."""
+    return " ".join(line.strip() for line in html.splitlines() if line.strip())
 
 
 def section(title: str, subtitle: str | None = None) -> None:
     """Page-level heading with a clean 1px hairline rule."""
     sub_html = f'<div class="section-subtitle">{strip_emojis(subtitle)}</div>' if subtitle else ""
     st.markdown(
-        f"""
+        _flat(f"""
         <div style="margin-top: 14px; margin-bottom: 12px;">
             <div class="section-title">{strip_emojis(title)}</div>
             {sub_html}
             <div class="section-divider"></div>
         </div>
-        """,
+        """),
         unsafe_allow_html=True,
     )
 
@@ -168,7 +174,7 @@ def card_header(title: str, subtitle: str | None = None, right: str | None = Non
     right_html = f'<div class="status-chip">{strip_emojis(right)}</div>' if right else ""
     sub_html = f'<div class="card-subtitle">{strip_emojis(subtitle)}</div>' if subtitle else ""
     st.markdown(
-        f"""
+        _flat(f"""
         <div class="card-title-row">
             <div>
                 <div class="card-title">{strip_emojis(title).upper()}</div>
@@ -176,7 +182,7 @@ def card_header(title: str, subtitle: str | None = None, right: str | None = Non
             </div>
             {right_html}
         </div>
-        """,
+        """),
         unsafe_allow_html=True,
     )
 
@@ -218,7 +224,7 @@ def delta(value: float | str, is_pct: bool = True) -> str:
 def empty_state(text: str) -> None:
     """Render empty state with a thin-line abstract chart and mono prompt."""
     st.markdown(
-        f"""
+        _flat(f"""
         <div class="empty-state-box">
             <svg width="120" height="40" viewBox="0 0 120 40" fill="none">
                 <line x1="0" y1="35" x2="120" y2="35" stroke="#1F1F1F" stroke-width="1"/>
@@ -226,7 +232,7 @@ def empty_state(text: str) -> None:
             </svg>
             <div class="empty-state-text">{strip_emojis(text).upper()}</div>
         </div>
-        """,
+        """),
         unsafe_allow_html=True,
     )
 
@@ -240,12 +246,12 @@ def risk_badge(label: str, lang: str = "en") -> None:
     color = RISK_COLORS.get(norm, "#F59E0B")
     display_label = strip_emojis(t(norm, lang)).upper()
     st.markdown(
-        f"""
+        _flat(f"""
         <div style="display:inline-flex; align-items:center; gap:8px; border:1px solid {color}; border-radius:4px; padding:4px 12px; background:#0A0A0A;">
             <span style="width:6px; height:6px; border-radius:50%; background:{color};"></span>
             <span style="font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:600; color:{color}; letter-spacing:0.06em;">{display_label}</span>
         </div>
-        """,
+        """),
         unsafe_allow_html=True,
     )
 
@@ -260,13 +266,13 @@ def metric_card(label: str, value: str, delta_val: str | None = None,
         delta_html = f"""<div class="delta-val {cls}" style="margin-top:6px;"><span class="delta-glyph">{glyph}</span> {delta_val}</div>"""
 
     st.markdown(
-        f"""
+        _flat(f"""
         <div style="background:#0A0A0A; border:1px solid #1F1F1F; border-radius:6px; padding:14px 16px;">
             <div style="font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:#8A8A8A;">{strip_emojis(label)}</div>
             <div style="font-family:'JetBrains Mono',monospace; font-variant-numeric:tabular-nums; font-size:24px; font-weight:600; color:#F5F5F5; line-height:1.2; margin-top:4px;">{value}</div>
             {delta_html}
         </div>
-        """,
+        """),
         unsafe_allow_html=True,
     )
 
@@ -275,12 +281,12 @@ def sentiment_chip(sentiment: str) -> None:
     """Render flat sentiment chip."""
     color = SENTIMENT_COLORS.get(sentiment, "#8A8A8A")
     st.markdown(
-        f"""
+        _flat(f"""
         <span style="display:inline-flex; align-items:center; gap:6px; border:1px solid {color}; border-radius:4px; padding:2px 8px; font-family:'JetBrains Mono',monospace; font-size:11px; text-transform:uppercase; color:{color}; background:#0A0A0A;">
             <span style="width:5px; height:5px; border-radius:50%; background:{color};"></span>
             <span>{sentiment.upper()}</span>
         </span>
-        """,
+        """),
         unsafe_allow_html=True,
     )
 
@@ -294,7 +300,7 @@ def source_badge(source: str, lang: str = "en") -> None:
     }
     label = label_map.get(source.lower(), source)
     st.markdown(
-        f"""<span class="status-chip"><span>{strip_emojis(label).upper()}</span></span>""",
+        _flat(f"""<span class="status-chip"><span>{strip_emojis(label).upper()}</span></span>"""),
         unsafe_allow_html=True,
     )
 
@@ -302,7 +308,7 @@ def source_badge(source: str, lang: str = "en") -> None:
 def info_banner(text: str) -> None:
     """Render flat info banner with 2px left border in info blue."""
     st.markdown(
-        f"""<div data-testid="stAlert"><p>{strip_emojis(text)}</p></div>""",
+        _flat(f"""<div data-testid="stAlert"><p>{strip_emojis(text)}</p></div>"""),
         unsafe_allow_html=True,
     )
 
@@ -310,7 +316,7 @@ def info_banner(text: str) -> None:
 def footer(lang: str = "en") -> None:
     """Render the app footer disclaimer."""
     st.markdown(
-        f"""<div class="footer-disclaimer">{strip_emojis(t("footer", lang))}</div>""",
+        _flat(f"""<div class="footer-disclaimer">{strip_emojis(t("footer", lang))}</div>"""),
         unsafe_allow_html=True,
     )
 

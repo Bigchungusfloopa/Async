@@ -24,9 +24,9 @@ dump("classify", {
     "label": "High",
     "probs": {"Low": 0.05, "Medium": 0.25, "High": 0.70},
     "top_factors": [
-        {"name": "Volatility, last 6 months", "value": "28%", "impact": "raises risk", "feature": "vol_126", "effect": 0.62},
-        {"name": "Recent-weighted volatility", "value": "30%", "impact": "raises risk", "feature": "ewma_vol", "effect": 0.31},
-        {"name": "Sector concentration", "value": "0.52", "impact": "raises risk", "feature": "sector_hhi", "effect": 0.18},
+        {"name": "Volatility, last 6 months", "value": "28%", "impact": "raises risk", "feature": "vol_126", "share": 0.31, "effect": 0.62},
+        {"name": "Recent-weighted volatility", "value": "30%", "impact": "raises risk", "feature": "ewma_vol", "share": 0.19, "effect": 0.31},
+        {"name": "Sector concentration", "value": "0.52", "impact": "raises risk", "feature": "sector_hhi", "share": 0.11, "effect": 0.18},
     ],
     "features": {
         "ann_return": 0.14, "ann_vol": 0.27, "max_drawdown": -0.31, "sharpe": 0.42, "avg_corr": 0.71, "hhi": 0.45,

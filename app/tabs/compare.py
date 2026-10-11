@@ -52,12 +52,16 @@ def render_tab(tickers: list[str], weights: dict[str, float],
     orig_s = sharpes.get("Original", 0)
     bmk_s = sharpes.get("Benchmark", 0)
 
-    if rec_s >= orig_s and rec_s >= bmk_s:
-        verdict_text = f"VERDICT: RECOMMENDED ALLOCATION OUTPERFORMS ON A RISK-ADJUSTED BASIS (SHARPE {rec_s:.2f} VS {orig_s:.2f} ORIGINAL, {bmk_s:.2f} BENCHMARK)."
-        status_cls = "alert-success"
-    else:
-        verdict_text = f"VERDICT: PORTFOLIO PROVIDES CAPITAL PRESERVATION AND MINIMUM VARIANCE RELATIVE TO BENCHMARK."
-        status_cls = "alert-warn"
+    orig_beats = orig_s > bmk_s
+    rec_beats = rec_s > bmk_s
+    rec_improves = rec_s > orig_s
+    verdict_text = (
+        f"VERDICT (RISK-ADJUSTED, SHARPE): YOUR PORTFOLIO {'OUTPERFORMS' if orig_beats else 'UNDERPERFORMS'} "
+        f"THE BENCHMARK ({orig_s:.2f} VS {bmk_s:.2f}). THE RECOMMENDED ALLOCATION "
+        f"{'IMPROVES ON IT' if rec_improves else 'DOES NOT IMPROVE ON IT'} ({rec_s:.2f}) AND "
+        f"{'BEATS' if rec_beats else 'DOES NOT BEAT'} THE BENCHMARK. PAST PERFORMANCE IS NOT A GUARANTEE."
+    )
+    status_cls = "alert-success" if (orig_beats or rec_beats) else "alert-warn"
 
     st.markdown(f'<div data-testid="stAlert" class="{status_cls}"><p style="font-family:\'JetBrains Mono\',monospace; font-weight:600; font-size:12px; letter-spacing:0.04em;">{verdict_text}</p></div>', unsafe_allow_html=True)
     st.markdown("<div style='margin-top:12px;'></div>", unsafe_allow_html=True)

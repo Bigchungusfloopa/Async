@@ -3,6 +3,7 @@
 Risk levels
 * ``Low``    -> minimum variance                                  (mode ``min_variance``)
 * ``Medium`` -> maximum Sharpe ratio                              (mode ``max_sharpe``)
+              or, when no allocation beats the risk-free rate, equal risk contribution (``risk_parity``)
 * ``High``   -> maximise return s.t. vol <= 1.3 x equal-weight vol (mode ``max_return_vol_cap``)
 * solver failure / single asset                                   (mode ``fallback_equal``)
 
@@ -33,6 +34,7 @@ _MODES = {"Low": "min_variance", "Medium": "max_sharpe", "High": "max_return_vol
 _OBJECTIVE_TEXT = {
     "min_variance": "minimum variance (Low risk)",
     "max_sharpe": "maximum Sharpe ratio (Medium risk)",
+    "risk_parity": "equal risk contribution (Medium risk)",
     "max_return_vol_cap": "maximum return within a volatility cap of 1.3x equal-weight volatility (High risk)",
     "fallback_equal": "equal weight",
 }
@@ -102,6 +104,16 @@ def _solve(mode: str, mu: np.ndarray, cov: np.ndarray, rf: float, lo: float, hi:
             s = np.sqrt(max(w @ cw, 1e-16))
             m = mu @ w
             return -(np.exp(m) * mu / s - (np.expm1(m) - rf) * cw / s ** 3)
+        extra = []
+        score = fun
+    elif mode == "risk_parity":
+        # every asset contributes the same share of portfolio variance: a balanced middle ground between
+        # minimum variance (Low) and maximum return (High) that needs no return forecast at all
+        def fun(w):
+            cw = cov @ w
+            var = max(float(w @ cw), 1e-16)
+            return 1e4 * float(np.sum((w * cw / var - 1.0 / n) ** 2))
+        jac = None
         extra = []
         score = fun
     else:  # max_return_vol_cap
@@ -231,8 +243,9 @@ def optimize(prices: pd.DataFrame, risk_level: str, bounds: tuple[float, float] 
         vol_ew = float(np.sqrt(ew @ cov @ ew))
         cap = VOL_CAP_MULTIPLE * vol_ew
         if mode == "max_sharpe" and np.expm1(_max_linear(mu_hist, lo, hi)) <= rf:
-            mode = "min_variance"
-            notes.append("No allocation beats the risk-free rate on expected return, so the minimum-variance mix is used instead of maximum Sharpe.")
+            mode = "risk_parity"
+            notes.append("No allocation beats the risk-free rate on historical return, so maximum Sharpe is not "
+                         "meaningful; an equal-risk-contribution mix is used for Medium instead.")
 
         def hist_sharpe(x: np.ndarray) -> float:      # identical to the reported Sharpe
             v = float(np.sqrt(x @ cov @ x))

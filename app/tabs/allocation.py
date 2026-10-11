@@ -113,7 +113,8 @@ def render_tab(tickers: list[str], weights: dict[str, float],
     # 4. Risk-Return Scatter with Flat-Dot Random Portfolio Cloud
     # -----------------------------------------------------------------------
     with st.container(border=True):
-        ui.card_header(t("risk_return_scatter", lang), subtitle="EFFICIENT FRONTIER SIMULATION & ASSET COORDINATES")
+        ui.card_header(t("risk_return_scatter", lang), subtitle="400 RANDOM WEIGHTINGS OF YOUR ASSETS (REAL HISTORY) & ASSET COORDINATES")
         scatter_pts = api.risk_return_points(tickers_t, weights_t, rec_weights_t, benchmark, start, end)
-        fig_scatter = charts.risk_return_scatter(scatter_pts, cloud=True)
+        fig_scatter = charts.risk_return_scatter(scatter_pts, cloud=True,
+                                                 cloud_points=api.random_portfolio_cloud(tickers_t, start, end))
         st.plotly_chart(fig_scatter, use_container_width=True, config=charts.PLOT_CONFIG, key="allocation_chart_4")

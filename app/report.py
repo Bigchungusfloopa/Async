@@ -219,7 +219,8 @@ def export_button(lang: str, tickers: list, weights: dict, risk_label: str,
             )
         if pdf_bytes:
             st.download_button(
-                label=f"DOWNLOAD {session_name.upper()}.PDF",
+                label="DOWNLOAD " + "".join("\\" + c if c in "_*`[]#~" else c
+                                            for c in session_name.upper()) + ".PDF",   # labels are Markdown
                 data=pdf_bytes,
                 file_name=f"{session_name.replace(' ', '_')}.pdf",
                 mime="application/pdf",

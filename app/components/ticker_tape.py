@@ -14,18 +14,8 @@ def render_ticker_tape(quotes: list[dict], height: int = 34) -> None:
     Render single-line marquee ticker tape.
     quotes: list of {'symbol': str, 'price': float, 'change_pct': float}
     """
-    if not quotes:
-        quotes = [
-            {"symbol": "NIFTY 50", "price": 24850.30, "change_pct": 0.45},
-            {"symbol": "S&P 500", "price": 5751.10, "change_pct": -0.22},
-            {"symbol": "NASDAQ", "price": 18276.60, "change_pct": 0.31},
-            {"symbol": "RELIANCE.NS", "price": 2980.50, "change_pct": 1.15},
-            {"symbol": "TCS.NS", "price": 4210.00, "change_pct": -0.38},
-            {"symbol": "HDFCBANK.NS", "price": 1665.20, "change_pct": 0.52},
-            {"symbol": "INFY.NS", "price": 1895.40, "change_pct": -0.85},
-            {"symbol": "AAPL", "price": 229.04, "change_pct": 0.72},
-            {"symbol": "NVDA", "price": 134.80, "change_pct": 2.10},
-        ]
+    if not quotes:      # no real quotes -> render nothing rather than made-up prices
+        return
 
     # Generate items twice to create seamless loop
     items_html = []

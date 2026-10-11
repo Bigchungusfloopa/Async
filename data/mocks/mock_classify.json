@@ -11,6 +11,7 @@
    "value": "28%",
    "impact": "raises risk",
    "feature": "vol_126",
+   "share": 0.31,
    "effect": 0.62
   },
   {
@@ -18,6 +19,7 @@
    "value": "30%",
    "impact": "raises risk",
    "feature": "ewma_vol",
+   "share": 0.19,
    "effect": 0.31
   },
   {
@@ -25,6 +27,7 @@
    "value": "0.52",
    "impact": "raises risk",
    "feature": "sector_hhi",
+   "share": 0.11,
    "effect": 0.18
   }
  ],

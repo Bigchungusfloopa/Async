@@ -179,7 +179,7 @@ def _load_snapshot(tickers: list[str], lang: str, remote: bool) -> dict | None:
 
 
 # --------------------------------------------------------------------------- public API
-def get_news_insight(tickers: list[str], lang: str = "en") -> dict:
+def get_news_insight(tickers: list[str], lang: str = "en", cached_only: bool = False) -> dict:
     """Sentiment, per-ticker drivers, sector trends, risks, summary and headlines for ``tickers``.
 
     Shape: ``{"sentiment", "per_ticker": [{"ticker","sentiment","drivers"}], "sector_trends", "risks": [...],
@@ -189,6 +189,9 @@ def get_news_insight(tickers: list[str], lang: str = "en") -> dict:
     tickers = [t for t in dict.fromkeys(str(x).strip().upper() for x in (tickers or []) if str(x).strip())][:MAX_TICKERS]
     if not tickers:
         return _empty([], "No tickers selected.", "offline")
+    if cached_only:       # first render of the tab: show a saved insight if there is one, never fetch / call an LLM
+        snap = _load_snapshot(tickers, lang, remote=False)
+        return {**snap, "source": "cache"} if snap else _empty([], "", "offline")
     unavailable = "AI market summary is unavailable right now (offline mode or provider limit)."
 
     if llm.is_offline():
